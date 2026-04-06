@@ -1,6 +1,8 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { Plus, Archive, Search, RotateCcw } from 'lucide-react';
+import { Plus, Archive, Search, RotateCcw, Tags, Edit2 } from 'lucide-react';
+import CategoryManager from './CategoryManager';
+import ActivityEditPanel from './ActivityEditPanel';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -23,12 +25,15 @@ interface ActivityManagerProps {
   onClose: () => void;
 }
 
-const CATEGORIES = ['Social', 'Motor Skills', 'Communication', 'Life Skills', 'Academic', 'Other'];
+interface Category { id: number; name: string; color: string; sort_order: number; }
 
 export default function ActivityManager({ open, onClose }: ActivityManagerProps) {
   const [activities, setActivities] = useState<Activity[]>([]);
   const [search, setSearch] = useState('');
   const [adding, setAdding] = useState(false);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [categoryManagerOpen, setCategoryManagerOpen] = useState(false);
+  const [editingActivityId, setEditingActivityId] = useState<number | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [newActivity, setNewActivity] = useState({
     name: '', description: '', category: '', color: '#F97316',
@@ -42,7 +47,16 @@ export default function ActivityManager({ open, onClose }: ActivityManagerProps)
       .catch(() => {});
   };
 
-  useEffect(() => { if (open) fetchActivities(); }, [open]);
+  const fetchCategories = () => {
+    fetch('/api/categories').then(r => r.json()).then(setCategories).catch(() => {});
+  };
+
+  useEffect(() => {
+    if (open) {
+      fetchActivities();
+      fetchCategories();
+    }
+  }, [open]);
 
   const filtered = activities.filter(a =>
     a.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -134,6 +148,9 @@ export default function ActivityManager({ open, onClose }: ActivityManagerProps)
               onChange={e => setSearch(e.target.value)}
             />
           </div>
+          <Button id="activity-manager-categories" size="sm" variant="outline" onClick={() => setCategoryManagerOpen(true)}>
+            <Tags className="h-4 w-4 mr-1" /> Categories
+          </Button>
           <Button id="activity-manager-add" size="sm" onClick={() => setAdding(true)}>
             <Plus className="h-4 w-4 mr-1" /> New
           </Button>
@@ -163,7 +180,7 @@ export default function ActivityManager({ open, onClose }: ActivityManagerProps)
                   onChange={e => setNewActivity(p => ({ ...p, category: e.target.value }))}
                 >
                   <option value="">Select category...</option>
-                  {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                  {categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
                 </select>
               </div>
               <div className="col-span-2">
@@ -221,48 +238,72 @@ export default function ActivityManager({ open, onClose }: ActivityManagerProps)
               <h3 className="text-xs font-bold uppercase text-gray-400 mb-2 sticky top-0 bg-background py-1">{cat}</h3>
               <div className="space-y-1.5">
                 {acts.map(a => (
-                  <div
-                    key={a.id}
-                    id={`activity-item-${a.id}`}
-                    className="flex items-center gap-3 p-3 rounded-lg border bg-white dark:bg-gray-800"
-                  >
-                    <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: a.color }} />
-                    <div className="flex-1 min-w-0">
-                      <p className={`text-sm font-medium ${a.is_archived ? 'text-gray-400' : ''}`}>{a.name}</p>
-                      {a.description && <p className="text-xs text-gray-500 truncate">{a.description}</p>}
-                    </div>
-                    {!a.is_archived && (
-                      <div className="flex items-center gap-2 flex-shrink-0">
-                        <span className="text-xs text-gray-400 hidden sm:block">Auto</span>
-                        <Switch
-                          id={`activity-default-${a.id}`}
-                          checked={!!a.is_default}
-                          onCheckedChange={() => toggleDefault(a)}
-                          aria-label={`Toggle auto-schedule for ${a.name}`}
-                        />
+                  <div key={a.id}>
+                    <div
+                      id={`activity-item-${a.id}`}
+                      className="flex items-center gap-3 p-3 rounded-lg border bg-white dark:bg-gray-800"
+                    >
+                      <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: a.color }} />
+                      <div className="flex-1 min-w-0">
+                        <p className={`text-sm font-medium ${a.is_archived ? 'text-gray-400' : ''}`}>{a.name}</p>
+                        {a.description && <p className="text-xs text-gray-500 truncate">{a.description}</p>}
                       </div>
-                    )}
-                    {a.is_archived ? (
-                      <Button
-                        id={`activity-restore-${a.id}`}
-                        variant="outline"
-                        size="sm"
-                        onClick={() => unarchiveActivity(a)}
-                        className="flex-shrink-0"
-                      >
-                        <RotateCcw className="h-3 w-3 mr-1" /> Restore
-                      </Button>
-                    ) : (
-                      <Button
-                        id={`activity-archive-${a.id}`}
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => archiveActivity(a)}
-                        className="text-gray-400 hover:text-red-500 flex-shrink-0"
-                        aria-label={`Archive ${a.name}`}
-                      >
-                        <Archive className="h-4 w-4" />
-                      </Button>
+                      {!a.is_archived && (
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          <span className="text-xs text-gray-400 hidden sm:block">Auto</span>
+                          <Switch
+                            id={`activity-default-${a.id}`}
+                            checked={!!a.is_default}
+                            onCheckedChange={() => toggleDefault(a)}
+                            aria-label={`Toggle auto-schedule for ${a.name}`}
+                          />
+                        </div>
+                      )}
+                      {!a.is_archived && (
+                        <Button
+                          id={`activity-edit-${a.id}`}
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setEditingActivityId(editingActivityId === a.id ? null : a.id)}
+                          aria-label={`Edit ${a.name}`}
+                        >
+                          <Edit2 className="h-4 w-4" />
+                        </Button>
+                      )}
+                      {a.is_archived ? (
+                        <Button
+                          id={`activity-restore-${a.id}`}
+                          variant="outline"
+                          size="sm"
+                          onClick={() => unarchiveActivity(a)}
+                          className="flex-shrink-0"
+                        >
+                          <RotateCcw className="h-3 w-3 mr-1" /> Restore
+                        </Button>
+                      ) : (
+                        <Button
+                          id={`activity-archive-${a.id}`}
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => archiveActivity(a)}
+                          className="text-gray-400 hover:text-red-500 flex-shrink-0"
+                          aria-label={`Archive ${a.name}`}
+                        >
+                          <Archive className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                    {editingActivityId === a.id && (
+                      <ActivityEditPanel
+                        activityId={a.id}
+                        initialName={a.name}
+                        initialDescription={a.description}
+                        initialCategory={a.category}
+                        initialColor={a.color}
+                        categories={categories}
+                        onSaved={() => { setEditingActivityId(null); fetchActivities(); }}
+                        onCancel={() => setEditingActivityId(null)}
+                      />
                     )}
                   </div>
                 ))}
@@ -276,6 +317,12 @@ export default function ActivityManager({ open, onClose }: ActivityManagerProps)
           )}
         </div>
       </DialogContent>
+
+      <CategoryManager
+        open={categoryManagerOpen}
+        onClose={() => setCategoryManagerOpen(false)}
+        onChanged={fetchCategories}
+      />
     </Dialog>
   );
 }
