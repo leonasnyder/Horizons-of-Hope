@@ -36,17 +36,15 @@ export async function POST(req: NextRequest) {
     if (!data.version) return NextResponse.json({ error: 'Invalid backup file — missing version field' }, { status: 400 });
 
     db.transaction(() => {
-      // Clear all tables in dependency order
-      db.exec(`
-        DELETE FROM goal_responses;
-        DELETE FROM goal_subcategories;
-        DELETE FROM goals;
-        DELETE FROM schedule_entries;
-        DELETE FROM activity_usage_log;
-        DELETE FROM activity_defaults;
-        DELETE FROM activities;
-        DELETE FROM app_settings;
-      `);
+      // Clear all tables in dependency order (individual statements, not db.exec)
+      db.prepare('DELETE FROM goal_responses').run();
+      db.prepare('DELETE FROM goal_subcategories').run();
+      db.prepare('DELETE FROM goals').run();
+      db.prepare('DELETE FROM schedule_entries').run();
+      db.prepare('DELETE FROM activity_usage_log').run();
+      db.prepare('DELETE FROM activity_defaults').run();
+      db.prepare('DELETE FROM activities').run();
+      db.prepare('DELETE FROM app_settings').run();
 
       if (Array.isArray(data.activities)) {
         const stmt = db.prepare('INSERT INTO activities (id, name, description, category, color, is_default, is_archived, created_at) VALUES (?,?,?,?,?,?,?,?)');
