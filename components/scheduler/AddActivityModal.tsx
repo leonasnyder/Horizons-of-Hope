@@ -23,6 +23,8 @@ export default function AddActivityModal({ date, defaultSlot, onClose, onAdded }
   const [duration, setDuration] = useState('30');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [subActivities, setSubActivities] = useState<{ id: number; label: string }[]>([]);
+  const [selectedSubIds, setSelectedSubIds] = useState<number[]>([]);
 
   useEffect(() => {
     fetch('/api/activities')
@@ -30,6 +32,19 @@ export default function AddActivityModal({ date, defaultSlot, onClose, onAdded }
       .then(data => { if (Array.isArray(data)) setActivities(data); })
       .catch(() => {});
   }, []);
+
+  useEffect(() => {
+    if (!selectedId) { setSubActivities([]); setSelectedSubIds([]); return; }
+    fetch(`/api/activities/${selectedId}/sub-activities`)
+      .then(r => r.json())
+      .then(data => {
+        if (Array.isArray(data)) {
+          setSubActivities(data);
+          setSelectedSubIds([]);
+        }
+      })
+      .catch(() => {});
+  }, [selectedId]);
 
   const handleAdd = async () => {
     if (!selectedId) { setError('Please select an activity'); return; }
@@ -45,6 +60,7 @@ export default function AddActivityModal({ date, defaultSlot, onClose, onAdded }
           date,
           time_slot: timeSlot,
           duration_minutes: Number(duration) || 30,
+          sub_activity_ids: selectedSubIds,
         }),
       });
       if (!res.ok) {
@@ -115,6 +131,32 @@ export default function AddActivityModal({ date, defaultSlot, onClose, onAdded }
               />
             </div>
           </div>
+          {subActivities.length > 0 && (
+            <div id="add-activity-subactivities">
+              <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Sub-activities</p>
+              <div className="border rounded-lg divide-y max-h-48 overflow-y-auto">
+                {subActivities.map(s => (
+                  <label
+                    key={s.id}
+                    id={`subactivity-check-${s.id}`}
+                    className="flex items-center gap-3 px-3 py-2.5 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 min-h-[44px]"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedSubIds.includes(s.id)}
+                      onChange={e =>
+                        setSelectedSubIds(prev =>
+                          e.target.checked ? [...prev, s.id] : prev.filter(id => id !== s.id)
+                        )
+                      }
+                      className="h-4 w-4 rounded accent-orange-500"
+                    />
+                    <span className="text-sm">{s.label}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
           {error && <p id="add-activity-error" className="text-sm text-red-500">{error}</p>}
         </div>
         <DialogFooter>
