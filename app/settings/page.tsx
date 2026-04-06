@@ -45,13 +45,20 @@ export default function SettingsPage() {
   }, []);
 
   const saveSetting = async (key: string, value: string) => {
+    const prev = settings[key as keyof AppSettings];
     setSettings(s => ({ ...s, [key]: value }));
-    await fetch('/api/settings', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ [key]: value }),
-    });
-    toast.success('Setting saved');
+    try {
+      const res = await fetch('/api/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ [key]: value }),
+      });
+      if (!res.ok) throw new Error();
+      toast.success('Setting saved');
+    } catch {
+      setSettings(s => ({ ...s, [key]: prev }));
+      toast.error('Failed to save setting');
+    }
   };
 
   const requestNotifications = async () => {

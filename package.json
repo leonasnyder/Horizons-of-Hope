@@ -4,10 +4,10 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "node scripts/generate-icons.js && next build",
+    "build": "node scripts/create-placeholder-icons.js && next build",
     "start": "next start",
     "lint": "next lint",
-    "generate-icons": "node scripts/generate-icons.js"
+    "generate-icons": "node scripts/create-placeholder-icons.js"
   },
   "dependencies": {
     "next": "14.2.5",
