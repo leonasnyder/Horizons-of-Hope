@@ -19,6 +19,8 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   try {
     const db = getDb();
     const activityId = Number(params.id);
+    const activity = db.prepare('SELECT id FROM activities WHERE id = ? AND is_archived = 0').get(activityId);
+    if (!activity) return NextResponse.json({ error: 'Activity not found' }, { status: 404 });
     const { label } = await req.json();
     if (!label?.trim()) return NextResponse.json({ error: 'label is required' }, { status: 400 });
     const maxOrder = (db.prepare(
