@@ -28,37 +28,44 @@ export default function StalenessWarning({
   useEffect(() => {
     const currentWeek = getWeekStart(new Date());
 
-    fetch('/api/activities')
-      .then(r => r.json())
-      .then(async (activities: Array<{ id: number; name: string; category: string | null; is_archived: number }>) => {
+    async function computeStaleness() {
+      try {
+        // Fetch all activities and the full export (for usage log) in parallel
+        const [activitiesRes, exportRes] = await Promise.all([
+          fetch('/api/activities'),
+          fetch('/api/export'),
+        ]);
+
+        if (!activitiesRes.ok || !exportRes.ok) return;
+
+        const activities: Array<{ id: number; name: string; category: string | null; is_archived: number }> = await activitiesRes.json();
+        const exportData = await exportRes.json();
+
+        const usageLog: Array<{ activity_id: number; week_start: string }> =
+          Array.isArray(exportData.activity_usage_log) ? exportData.activity_usage_log : [];
+
         const stale: ActivityWithStreak[] = [];
 
         for (const act of activities.filter(a => !a.is_archived)) {
-          // Fetch usage log for this activity via analytics endpoint
-          const res = await fetch(`/api/activities/${act.id}`);
-          if (!res.ok) continue;
-          // We need activity_usage_log rows — fetch them via a dedicated query
-          // Since we don't have a separate endpoint, use the export to get usage log
-          // Instead, call the schedule endpoint to approximate — but best approach:
-          // Add ?usage=true to the activities/[id] endpoint or use analytics
-          // For now, use a workaround: fetch from usage log via export
-          const exportRes = await fetch('/api/export');
-          const exportData = await exportRes.json();
-          const usageLog = (exportData.activity_usage_log as Array<{ activity_id: number; week_start: string }>)
+          const activityUsage = usageLog
             .filter(u => u.activity_id === act.id)
             .map(u => u.week_start)
             .sort()
             .reverse();
 
-          const streak = computeStreak(usageLog, currentWeek);
+          const streak = computeStreak(activityUsage, currentWeek);
           if (streak >= amberThreshold) {
-            stale.push({ ...act, streak });
+            stale.push({ id: act.id, name: act.name, category: act.category, streak });
           }
         }
 
         setStaleActivities(stale);
-      })
-      .catch(() => {});
+      } catch {
+        // Non-critical — fail silently
+      }
+    }
+
+    computeStaleness();
   }, [amberThreshold]);
 
   const suggestReplacements = async (act: ActivityWithStreak) => {
