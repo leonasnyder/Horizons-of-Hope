@@ -1,11 +1,12 @@
 'use client';
-import { Trash2 } from 'lucide-react';
+import { Trash2, Pencil } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 
 interface Response {
   id: number;
   response_type: 'correct' | 'incorrect';
+  subcategory_id: number | null;
   subcategory_label: string | null;
   timestamp: string;
   session_notes: string | null;
@@ -14,9 +15,10 @@ interface Response {
 interface ResponseLogProps {
   responses: Response[];
   onDelete: (id: number) => Promise<void>;
+  onEdit: (response: Response) => void;
 }
 
-export default function ResponseLog({ responses, onDelete }: ResponseLogProps) {
+export default function ResponseLog({ responses, onDelete, onEdit }: ResponseLogProps) {
   if (responses.length === 0) {
     return (
       <div id="response-log-empty" className="text-center py-4 text-gray-400 text-sm">
@@ -50,6 +52,14 @@ export default function ResponseLog({ responses, onDelete }: ResponseLogProps) {
           <span className="text-xs text-gray-400 whitespace-nowrap flex-shrink-0">
             {format(parseISO(r.timestamp), 'h:mm a')}
           </span>
+          <button
+            id={`response-edit-${r.id}`}
+            onClick={() => onEdit(r)}
+            className="p-1 rounded hover:bg-blue-100 dark:hover:bg-blue-900 text-gray-400 hover:text-blue-500 transition-colors min-w-[32px] min-h-[32px] flex items-center justify-center flex-shrink-0"
+            aria-label="Edit response"
+          >
+            <Pencil className="h-3 w-3" />
+          </button>
           <button
             id={`response-delete-${r.id}`}
             onClick={() => onDelete(r.id)}
