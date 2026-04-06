@@ -13,6 +13,13 @@ const CATEGORY_COLORS: Record<string, string> = {
   'Academic': 'bg-pink-100 text-pink-700 dark:bg-pink-900 dark:text-pink-300',
 };
 
+export interface EntrySubActivity {
+  id: number;
+  sub_activity_id: number | null;
+  label: string;
+  completed: number;
+}
+
 interface ScheduleEntryForCard {
   id: number;
   activity_id: number;
@@ -23,6 +30,7 @@ interface ScheduleEntryForCard {
   activity_name: string;
   category: string | null;
   color: string;
+  entry_sub_activities: EntrySubActivity[];
 }
 
 interface ActivityCardProps {
@@ -30,9 +38,10 @@ interface ActivityCardProps {
   onUpdate: (id: number, data: Record<string, unknown>) => Promise<void>;
   onRemove: (id: number) => Promise<void>;
   onEdit: (entry: ScheduleEntryForCard) => void;
+  onToggleSubActivity: (entryId: number, entrySubActivityId: number, completed: number) => Promise<void>;
 }
 
-export default function ActivityCard({ entry, onUpdate, onRemove, onEdit }: ActivityCardProps) {
+export default function ActivityCard({ entry, onUpdate, onRemove, onEdit, onToggleSubActivity }: ActivityCardProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: entry.id });
   const style = { transform: CSS.Transform.toString(transform), transition };
@@ -100,6 +109,29 @@ export default function ActivityCard({ entry, onUpdate, onRemove, onEdit }: Acti
           {entry.notes && <span className="ml-2 italic truncate">{entry.notes}</span>}
         </div>
       </div>
+
+      {entry.entry_sub_activities.length > 0 && (
+        <div id={`entry-subactivities-${entry.id}`} className="flex flex-col gap-0.5 flex-shrink-0 mr-1">
+          {entry.entry_sub_activities.map(s => (
+            <label
+              key={s.id}
+              id={`entry-subactivity-${s.id}`}
+              className="flex items-center gap-1.5 cursor-pointer min-h-[28px]"
+              title={s.label}
+            >
+              <input
+                type="checkbox"
+                checked={!!s.completed}
+                onChange={e => onToggleSubActivity(entry.id, s.id, e.target.checked ? 1 : 0)}
+                className="h-4 w-4 rounded accent-orange-500 flex-shrink-0"
+              />
+              <span className={`text-xs ${s.completed ? 'line-through text-gray-400' : 'text-gray-600 dark:text-gray-300'}`}>
+                {s.label}
+              </span>
+            </label>
+          ))}
+        </div>
+      )}
 
       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
         <button

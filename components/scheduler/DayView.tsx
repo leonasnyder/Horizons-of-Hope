@@ -10,6 +10,7 @@ import { format, parseISO } from 'date-fns';
 import { toast } from 'sonner';
 import { useReactToPrint } from 'react-to-print';
 import ActivityCard from './ActivityCard';
+import type { EntrySubActivity } from './ActivityCard';
 import EditEntryModal from './EditEntryModal';
 import AddActivityModal from './AddActivityModal';
 import PrintDayView from './PrintDayView';
@@ -27,6 +28,7 @@ interface ScheduleEntry {
   activity_name: string;
   category: string | null;
   color: string;
+  entry_sub_activities: EntrySubActivity[];
 }
 
 interface DayViewProps {
@@ -84,6 +86,29 @@ export default function DayView({ date }: DayViewProps) {
       toast.error('Failed to remove activity');
     }
   }, [fetchEntries]);
+
+  const handleToggleSubActivity = useCallback(async (entryId: number, entrySubActivityId: number, completed: number) => {
+    try {
+      const res = await fetch(`/api/schedule/${entryId}/sub-activities`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ entry_sub_activity_id: entrySubActivityId, completed }),
+      });
+      if (!res.ok) throw new Error();
+      setEntries(prev => prev.map(e =>
+        e.id === entryId
+          ? {
+              ...e,
+              entry_sub_activities: e.entry_sub_activities.map(s =>
+                s.id === entrySubActivityId ? { ...s, completed } : s
+              ),
+            }
+          : e
+      ));
+    } catch {
+      toast.error('Failed to update sub-activity');
+    }
+  }, []);
 
   const handleDragEnd = useCallback(async (event: DragEndEvent) => {
     const { active, over } = event;
@@ -179,6 +204,7 @@ export default function DayView({ date }: DayViewProps) {
                           onUpdate={handleUpdate}
                           onRemove={handleRemove}
                           onEdit={setEditingEntry}
+                          onToggleSubActivity={handleToggleSubActivity}
                         />
                       ))
                     ) : (
