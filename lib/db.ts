@@ -90,8 +90,32 @@ function initSchema(db: Database.Database) {
       key TEXT PRIMARY KEY,
       value TEXT
     );
+
+    CREATE TABLE IF NOT EXISTS categories (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL UNIQUE,
+      color TEXT DEFAULT '#6B7280',
+      sort_order INTEGER DEFAULT 0
+    );
+
+    CREATE TABLE IF NOT EXISTS activity_sub_activities (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      activity_id INTEGER NOT NULL REFERENCES activities(id),
+      label TEXT NOT NULL,
+      sort_order INTEGER DEFAULT 0,
+      is_active INTEGER DEFAULT 1
+    );
+
+    CREATE TABLE IF NOT EXISTS schedule_entry_sub_activities (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      entry_id INTEGER NOT NULL REFERENCES schedule_entries(id),
+      sub_activity_id INTEGER REFERENCES activity_sub_activities(id),
+      label TEXT NOT NULL,
+      completed INTEGER DEFAULT 0
+    );
   `);
   seedIfEmpty(db);
+  seedCategoriesIfEmpty(db);
 }
 
 function seedIfEmpty(db: Database.Database) {
@@ -162,6 +186,24 @@ function seedIfEmpty(db: Database.Database) {
   seedAll();
 }
 
+function seedCategoriesIfEmpty(db: Database.Database) {
+  const count = (db.prepare('SELECT COUNT(*) as c FROM categories').get() as { c: number }).c;
+  if (count > 0) return;
+  const insert = db.prepare(
+    `INSERT OR IGNORE INTO categories (name, color, sort_order) VALUES (?, ?, ?)`
+  );
+  const defaults: [string, string, number][] = [
+    ['Social', '#A855F7', 0],
+    ['Motor Skills', '#3B82F6', 1],
+    ['Communication', '#22C55E', 2],
+    ['Life Skills', '#EAB308', 3],
+    ['Academic', '#EC4899', 4],
+    ['Other', '#6B7280', 5],
+  ];
+  const seed = db.transaction(() => { for (const row of defaults) insert.run(...row); });
+  seed();
+}
+
 // Typed exports
 export interface Activity {
   id: number; name: string; description: string | null;
@@ -197,3 +239,15 @@ export interface GoalResponse {
 }
 
 export interface AppSetting { key: string; value: string | null; }
+
+export interface Category {
+  id: number; name: string; color: string; sort_order: number;
+}
+
+export interface ActivitySubActivity {
+  id: number; activity_id: number; label: string; sort_order: number; is_active: number;
+}
+
+export interface ScheduleEntrySubActivity {
+  id: number; entry_id: number; sub_activity_id: number | null; label: string; completed: number;
+}
