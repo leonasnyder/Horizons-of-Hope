@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Check, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -20,14 +20,18 @@ export default function ResponseButtons({ goalId, correctSubcats, incorrectSubca
   const [logging, setLogging] = useState(false);
   const [flashedId, setFlashedId] = useState<number | null>(null);
 
+  const flashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => () => { if (flashTimer.current) clearTimeout(flashTimer.current); }, []);
+
   const handleLog = async (type: 'correct' | 'incorrect', subcatId: number) => {
     if (logging) return;
+    if (flashTimer.current) clearTimeout(flashTimer.current);
     setLogging(true);
     setFlashedId(subcatId);
     await onLog(type, subcatId);
     setLogging(false);
-    // Keep flash visible briefly, then clear
-    setTimeout(() => setFlashedId(null), 600);
+    flashTimer.current = setTimeout(() => setFlashedId(null), 600);
   };
 
   const renderGroup = (
