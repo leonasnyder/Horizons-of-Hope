@@ -135,7 +135,12 @@ export default function ActivityManager({ open, onClose }: ActivityManagerProps)
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent id="activity-manager" className="max-w-2xl max-h-[90vh] flex flex-col">
         <DialogHeader>
-          <DialogTitle>Manage Activities</DialogTitle>
+          <div className="flex items-center justify-between gap-2">
+            <DialogTitle>Manage Activities</DialogTitle>
+            <Button id="activity-manager-categories" variant="outline" size="sm" onClick={() => setCategoryManagerOpen(true)} className="flex-shrink-0">
+              <Tags className="h-4 w-4 mr-1" /> Manage Categories
+            </Button>
+          </div>
         </DialogHeader>
 
         <div className="flex items-center gap-2 mb-4">
@@ -149,11 +154,8 @@ export default function ActivityManager({ open, onClose }: ActivityManagerProps)
               onChange={e => setSearch(e.target.value)}
             />
           </div>
-          <Button id="activity-manager-categories" size="sm" variant="outline" onClick={() => setCategoryManagerOpen(true)}>
-            <Tags className="h-4 w-4 mr-1" /> Categories
-          </Button>
           <Button id="activity-manager-add" size="sm" onClick={() => setAdding(true)}>
-            <Plus className="h-4 w-4 mr-1" /> New
+            <Plus className="h-4 w-4 mr-1" /> New Activity
           </Button>
         </div>
 
