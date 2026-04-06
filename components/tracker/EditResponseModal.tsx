@@ -43,7 +43,8 @@ export default function EditResponseModal({ response, goalSubcategories, onClose
     const validSubcats = goalSubcategories.filter(s => s.response_type === responseType);
     const stillValid = validSubcats.some(s => s.id === subcategoryId);
     if (!stillValid) setSubcategoryId(null);
-  }, [responseType, goalSubcategories, subcategoryId]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [responseType, goalSubcategories]);
 
   const filteredSubcats = goalSubcategories.filter(s => s.response_type === responseType);
 
