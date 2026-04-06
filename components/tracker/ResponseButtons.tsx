@@ -1,8 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { Check, X } from 'lucide-react';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 
 interface Subcategory {
   id: number;
@@ -18,79 +17,74 @@ interface ResponseButtonsProps {
 }
 
 export default function ResponseButtons({ goalId, correctSubcats, incorrectSubcats, onLog }: ResponseButtonsProps) {
-  const [correctOpen, setCorrectOpen] = useState(false);
-  const [incorrectOpen, setIncorrectOpen] = useState(false);
   const [logging, setLogging] = useState(false);
+  const [flashedId, setFlashedId] = useState<number | null>(null);
 
   const handleLog = async (type: 'correct' | 'incorrect', subcatId: number) => {
+    if (logging) return;
     setLogging(true);
+    setFlashedId(subcatId);
     await onLog(type, subcatId);
     setLogging(false);
-    setCorrectOpen(false);
-    setIncorrectOpen(false);
+    // Keep flash visible briefly, then clear
+    setTimeout(() => setFlashedId(null), 600);
+  };
+
+  const renderGroup = (
+    subcats: Subcategory[],
+    type: 'correct' | 'incorrect'
+  ) => {
+    const isCorrect = type === 'correct';
+    return (
+      <div id={`response-group-${type}-${goalId}`} className="flex-1">
+        <p className={cn(
+          'text-xs font-semibold uppercase tracking-wide mb-1.5',
+          isCorrect ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
+        )}>
+          {isCorrect ? '✓ Correct' : '✗ Incorrect'}
+        </p>
+        {subcats.length === 0 ? (
+          <p className="text-xs text-gray-400 italic">No subcategories defined</p>
+        ) : (
+          <div className="flex flex-col gap-1.5">
+            {subcats.map(s => {
+              const flashed = flashedId === s.id;
+              return (
+                <button
+                  key={s.id}
+                  id={`${type}-subcat-${s.id}`}
+                  onClick={() => handleLog(type, s.id)}
+                  disabled={logging && !flashed}
+                  className={cn(
+                    'w-full text-left px-3 py-2.5 text-sm rounded-lg border transition-all min-h-[44px] flex items-center gap-2 font-medium',
+                    flashed
+                      ? isCorrect
+                        ? 'bg-green-500 border-green-500 text-white scale-[0.98]'
+                        : 'bg-red-500 border-red-500 text-white scale-[0.98]'
+                      : isCorrect
+                        ? 'bg-white dark:bg-gray-800 border-green-200 dark:border-green-800 text-gray-800 dark:text-gray-200 hover:bg-green-50 dark:hover:bg-green-950 hover:border-green-400'
+                        : 'bg-white dark:bg-gray-800 border-red-200 dark:border-red-800 text-gray-800 dark:text-gray-200 hover:bg-red-50 dark:hover:bg-red-950 hover:border-red-400'
+                  )}
+                  aria-label={`Record ${type}: ${s.label}`}
+                >
+                  {flashed
+                    ? isCorrect ? <Check className="h-3.5 w-3.5 flex-shrink-0" /> : <X className="h-3.5 w-3.5 flex-shrink-0" />
+                    : isCorrect ? <Check className="h-3.5 w-3.5 text-green-500 flex-shrink-0" /> : <X className="h-3.5 w-3.5 text-red-500 flex-shrink-0" />
+                  }
+                  {s.label}
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    );
   };
 
   return (
-    <div id={`response-buttons-${goalId}`} className="flex gap-3">
-      <Popover open={correctOpen} onOpenChange={setCorrectOpen}>
-        <PopoverTrigger asChild>
-          <Button
-            id={`response-correct-btn-${goalId}`}
-            className="flex-1 bg-green-500 hover:bg-green-600 text-white min-h-[52px] text-base font-semibold focus:ring-green-400"
-            disabled={logging}
-          >
-            <Check className="h-5 w-5 mr-2" /> Correct
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent id={`response-correct-popover-${goalId}`} className="w-64 p-2" align="start">
-          <p className="text-xs font-semibold text-gray-500 mb-2 px-1 uppercase tracking-wide">Select response type:</p>
-          {correctSubcats.length === 0 ? (
-            <p className="text-xs text-gray-400 px-2 py-1">No subcategories defined</p>
-          ) : (
-            correctSubcats.map(s => (
-              <button
-                key={s.id}
-                id={`correct-subcat-${s.id}`}
-                onClick={() => handleLog('correct', s.id)}
-                className="w-full text-left px-3 py-2.5 text-sm rounded-lg hover:bg-green-50 dark:hover:bg-green-950 transition-colors min-h-[44px] flex items-center gap-2"
-              >
-                <Check className="h-3 w-3 text-green-500 flex-shrink-0" />
-                {s.label}
-              </button>
-            ))
-          )}
-        </PopoverContent>
-      </Popover>
-
-      <Popover open={incorrectOpen} onOpenChange={setIncorrectOpen}>
-        <PopoverTrigger asChild>
-          <Button
-            id={`response-incorrect-btn-${goalId}`}
-            className="flex-1 bg-red-500 hover:bg-red-600 text-white min-h-[52px] text-base font-semibold focus:ring-red-400"
-            disabled={logging}
-          >
-            <X className="h-5 w-5 mr-2" /> Incorrect
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent id={`response-incorrect-popover-${goalId}`} className="w-64 p-2" align="start">
-          <p className="text-xs font-semibold text-gray-500 mb-2 px-1 uppercase tracking-wide">Select response type:</p>
-          {incorrectSubcats.length === 0 ? (
-            <p className="text-xs text-gray-400 px-2 py-1">No subcategories defined</p>
-          ) : (
-            incorrectSubcats.map(s => (
-              <button
-                key={s.id}
-                id={`incorrect-subcat-${s.id}`}
-                onClick={() => handleLog('incorrect', s.id)}
-                className="w-full text-left px-3 py-2.5 text-sm rounded-lg hover:bg-red-50 dark:hover:bg-red-950 transition-colors min-h-[44px] flex items-center gap-2"
-              >
-                <X className="h-3 w-3 text-red-500 flex-shrink-0" />
-                {s.label}
-              </button>
-            ))
-          )}
-        </PopoverContent>
-      </Popover>
+    <div id={`response-buttons-${goalId}`} className="flex gap-4">
+      {renderGroup(correctSubcats, 'correct')}
+      {renderGroup(incorrectSubcats, 'incorrect')}
     </div>
   );
 }
