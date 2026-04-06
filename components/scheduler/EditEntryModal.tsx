@@ -1,0 +1,97 @@
+'use client';
+import { useState } from 'react';
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+
+interface EditEntryModalProps {
+  entry: {
+    id: number;
+    time_slot: string;
+    duration_minutes: number;
+    notes: string | null;
+    activity_name: string;
+  };
+  onClose: () => void;
+  onSave: (data: Record<string, unknown>) => Promise<void>;
+}
+
+export default function EditEntryModal({ entry, onClose, onSave }: EditEntryModalProps) {
+  const [timeSlot, setTimeSlot] = useState(entry.time_slot);
+  const [duration, setDuration] = useState(String(entry.duration_minutes));
+  const [notes, setNotes] = useState(entry.notes ?? '');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleSave = async () => {
+    if (!timeSlot) { setError('Time is required'); return; }
+    const dur = Number(duration);
+    if (isNaN(dur) || dur < 5 || dur > 240) { setError('Duration must be between 5 and 240 minutes'); return; }
+    setSaving(true);
+    setError('');
+    try {
+      await onSave({ time_slot: timeSlot, duration_minutes: dur, notes: notes.trim() || null });
+    } catch {
+      setError('Failed to save');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Dialog open onOpenChange={onClose}>
+      <DialogContent id="edit-entry-modal">
+        <DialogHeader>
+          <DialogTitle>Edit: {entry.activity_name}</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4 py-2">
+          <div>
+            <Label htmlFor="edit-entry-time">Time</Label>
+            <Input
+              id="edit-entry-time"
+              type="time"
+              value={timeSlot}
+              onChange={e => setTimeSlot(e.target.value)}
+              className="mt-1"
+            />
+          </div>
+          <div>
+            <Label htmlFor="edit-entry-duration">Duration (minutes)</Label>
+            <Input
+              id="edit-entry-duration"
+              type="number"
+              min="5"
+              max="240"
+              step="5"
+              value={duration}
+              onChange={e => setDuration(e.target.value)}
+              className="mt-1"
+            />
+          </div>
+          <div>
+            <Label htmlFor="edit-entry-notes">Notes</Label>
+            <Textarea
+              id="edit-entry-notes"
+              value={notes}
+              onChange={e => setNotes(e.target.value)}
+              placeholder="Optional notes..."
+              rows={3}
+              className="mt-1"
+            />
+          </div>
+          {error && <p id="edit-entry-error" className="text-sm text-red-500">{error}</p>}
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose} id="edit-entry-cancel">Cancel</Button>
+          <Button onClick={handleSave} disabled={saving} id="edit-entry-save">
+            {saving ? 'Saving...' : 'Save Changes'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
