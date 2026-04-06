@@ -126,14 +126,20 @@ function seedIfEmpty(db: Database.Database) {
     ['Cooking/baking', 'Sequencing, math concepts, life skills', 'Life Skills', 0],
   ];
 
-  const defaults: [number, string, number][] = [
-    [1, '08:00', 30], [2, '09:00', 30], [3, '09:30', 30], [4, '10:00', 30],
-    [5, '10:30', 30], [6, '11:00', 30], [7, '11:30', 15], [8, '13:00', 30],
+  const defaultTimes: [string, number][] = [
+    ['08:00', 30], ['09:00', 30], ['09:30', 30], ['10:00', 30],
+    ['10:30', 30], ['11:00', 30], ['11:30', 15], ['13:00', 30],
   ];
 
   const seedAll = db.transaction(() => {
-    for (const act of activities) insertActivity.run(...act);
-    for (const [id, time, dur] of defaults) insertDefault.run(id, time, dur);
+    const insertedIds: number[] = [];
+    for (const act of activities) {
+      const result = insertActivity.run(...act) as Database.RunResult;
+      insertedIds.push(Number(result.lastInsertRowid));
+    }
+    defaultTimes.forEach(([time, dur], i) => {
+      insertDefault.run(insertedIds[i], time, dur);
+    });
 
     const g1 = (insertGoal.run('Communication goal', 'Track use of AAC device and verbal attempts', '#0EA5E9') as Database.RunResult).lastInsertRowid;
     const g2 = (insertGoal.run('Behavior regulation', 'Track self-regulation responses', '#22C55E') as Database.RunResult).lastInsertRowid;
@@ -190,4 +196,4 @@ export interface GoalResponse {
   timestamp: string; session_notes: string | null;
 }
 
-export interface AppSetting { key: string; value: string; }
+export interface AppSetting { key: string; value: string | null; }
