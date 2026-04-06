@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { useReactToPrint } from 'react-to-print';
 import PrintWeekView from './PrintWeekView';
+import { ExportWeekDocButton } from '@/components/shared/ExportButtons';
 
 interface ScheduleEntry {
   id: number;
@@ -79,6 +80,7 @@ export default function WeekView({ selectedDate, onSelectDay }: WeekViewProps) {
         <Button id="week-view-print" variant="outline" size="sm" onClick={handlePrint}>
           <Printer className="h-4 w-4 mr-1" /> Print Week
         </Button>
+        <ExportWeekDocButton weekStart={weekStart} entriesByDate={entriesByDate} />
       </div>
 
       {loading ? (

@@ -15,6 +15,7 @@ import AddActivityModal from './AddActivityModal';
 import PrintDayView from './PrintDayView';
 import { Button } from '@/components/ui/button';
 import { generateTimeSlots, formatTime } from '@/lib/utils';
+import { ExportDayDocButton } from '@/components/shared/ExportButtons';
 
 interface ScheduleEntry {
   id: number;
@@ -148,6 +149,7 @@ export default function DayView({ date }: DayViewProps) {
           <Button id="day-view-print" variant="outline" size="sm" onClick={handlePrint}>
             <Printer className="h-4 w-4 mr-1" /> Print Day
           </Button>
+          <ExportDayDocButton date={date} entries={entries} />
           <Button id="day-view-add" size="sm" onClick={() => setAddingToSlot('08:00')}>
             <Plus className="h-4 w-4 mr-1" /> Add Activity
           </Button>
