@@ -7,6 +7,7 @@ import {
 import { accuracy } from '@/lib/utils';
 import ResponseButtons from './ResponseButtons';
 import ResponseLog from './ResponseLog';
+import EditResponseModal from './EditResponseModal';
 import { toast } from 'sonner';
 
 interface Subcategory {
@@ -19,6 +20,7 @@ interface Response {
   id: number;
   goal_id: number;
   response_type: 'correct' | 'incorrect';
+  subcategory_id: number | null;
   subcategory_label: string | null;
   timestamp: string;
   session_notes: string | null;
@@ -42,6 +44,7 @@ interface GoalCardProps {
 export default function GoalCard({ goal, date, responses, onResponseAdded }: GoalCardProps) {
   const [expanded, setExpanded] = useState(true);
   const [sessionNote, setSessionNote] = useState('');
+  const [editingResponse, setEditingResponse] = useState<Response | null>(null);
 
   const correct = responses.filter(r => r.response_type === 'correct').length;
   const incorrect = responses.filter(r => r.response_type === 'incorrect').length;
@@ -84,6 +87,21 @@ export default function GoalCard({ goal, date, responses, onResponseAdded }: Goa
     } catch {
       toast.error('Failed to delete response');
     }
+  };
+
+  const handleEdit = async (id: number, data: {
+    response_type: 'correct' | 'incorrect';
+    subcategory_id: number | null;
+    session_notes: string | null;
+  }) => {
+    const res = await fetch(`/api/responses/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) throw new Error();
+    onResponseAdded();
+    toast.success('Response updated');
   };
 
   const chartData = [
@@ -166,7 +184,11 @@ export default function GoalCard({ goal, date, responses, onResponseAdded }: Goa
             <p className="text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wide">
               Today's Response Log ({total})
             </p>
-            <ResponseLog responses={responses} onDelete={handleDelete} />
+            <ResponseLog
+              responses={responses}
+              onDelete={handleDelete}
+              onEdit={r => setEditingResponse(r as Response)}
+            />
           </div>
 
           {/* Session note */}
@@ -182,6 +204,14 @@ export default function GoalCard({ goal, date, responses, onResponseAdded }: Goa
             />
           </div>
         </div>
+      )}
+      {editingResponse && (
+        <EditResponseModal
+          response={editingResponse}
+          goalSubcategories={goal.subcategories}
+          onClose={() => setEditingResponse(null)}
+          onSave={handleEdit}
+        />
       )}
     </div>
   );

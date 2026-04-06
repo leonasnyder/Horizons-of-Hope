@@ -28,6 +28,7 @@ interface Response {
   id: number;
   goal_id: number;
   response_type: 'correct' | 'incorrect';
+  subcategory_id: number | null;
   subcategory_label: string | null;
   timestamp: string;
   session_notes: string | null;
