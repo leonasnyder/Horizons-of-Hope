@@ -88,6 +88,12 @@ export default function DayView({ date }: DayViewProps) {
   }, [fetchEntries]);
 
   const handleToggleSubActivity = useCallback(async (entryId: number, entrySubActivityId: number, completed: number) => {
+    // Optimistic update
+    setEntries(prev => prev.map(e =>
+      e.id === entryId
+        ? { ...e, entry_sub_activities: e.entry_sub_activities.map(s => s.id === entrySubActivityId ? { ...s, completed } : s) }
+        : e
+    ));
     try {
       const res = await fetch(`/api/schedule/${entryId}/sub-activities`, {
         method: 'PATCH',
@@ -95,17 +101,13 @@ export default function DayView({ date }: DayViewProps) {
         body: JSON.stringify({ entry_sub_activity_id: entrySubActivityId, completed }),
       });
       if (!res.ok) throw new Error();
+    } catch {
+      // Rollback on failure
       setEntries(prev => prev.map(e =>
         e.id === entryId
-          ? {
-              ...e,
-              entry_sub_activities: e.entry_sub_activities.map(s =>
-                s.id === entrySubActivityId ? { ...s, completed } : s
-              ),
-            }
+          ? { ...e, entry_sub_activities: e.entry_sub_activities.map(s => s.id === entrySubActivityId ? { ...s, completed: completed ? 0 : 1 } : s) }
           : e
       ));
-    } catch {
       toast.error('Failed to update sub-activity');
     }
   }, []);
