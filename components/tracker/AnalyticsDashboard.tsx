@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from 'react';
 import { format, subDays, parseISO } from 'date-fns';
 import { useReactToPrint } from 'react-to-print';
 import { Printer, Download, TrendingUp, TrendingDown, Minus, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import TrendChart from './TrendChart';
@@ -84,7 +85,7 @@ export default function AnalyticsDashboard({ date, goals }: AnalyticsDashboardPr
       a.click();
       URL.revokeObjectURL(url);
     } catch {
-      // silent fail
+      toast.error('Failed to export data');
     }
   };
 
@@ -206,6 +207,14 @@ export default function AnalyticsDashboard({ date, goals }: AnalyticsDashboardPr
         </Card>
       </div>
 
+      {/* Overall Trend */}
+      <Card id="analytics-trend" className="mb-4">
+        <CardHeader><CardTitle className="text-base">Accuracy Trend ({days} days)</CardTitle></CardHeader>
+        <CardContent>
+          <TrendChart data={data.trend} goalColor={selectedGoalId ? (goals.find(g => g.id === selectedGoalId)?.color ?? '#F97316') : '#F97316'} />
+        </CardContent>
+      </Card>
+
       {/* Per-goal analysis */}
       {data.goalSummary.map(g => (
         <Card key={g.goal_id} id={`analytics-goal-${g.goal_id}`} className="mb-4">
@@ -221,9 +230,7 @@ export default function AnalyticsDashboard({ date, goals }: AnalyticsDashboardPr
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-xs text-gray-500 mb-2">Accuracy Trend ({days} days)</p>
-            <TrendChart data={data.trend} goalColor={g.color} />
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <p className="text-xs font-semibold text-green-600 mb-1">Correct Subcategories</p>
                 <SubcategoryBreakdown

@@ -69,6 +69,7 @@ export default function GoalCard({ goal, date, responses, onResponseAdded }: Goa
       toast.success(
         response_type === 'correct' ? '✓ Correct response logged' : '✗ Incorrect response logged'
       );
+      setSessionNote('');
     } catch {
       toast.error('Failed to log response');
     }

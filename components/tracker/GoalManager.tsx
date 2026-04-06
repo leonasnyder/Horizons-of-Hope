@@ -71,21 +71,29 @@ export default function GoalManager({ open, onClose, onChanged }: GoalManagerPro
 
   const archiveGoal = async (id: number, name: string) => {
     if (!window.confirm(`Archive "${name}"? Existing data is preserved.`)) return;
-    await fetch(`/api/goals/${id}`, { method: 'DELETE' });
-    fetchGoals();
-    onChanged();
-    toast.success('Goal archived');
+    try {
+      const res = await fetch(`/api/goals/${id}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error();
+      fetchGoals(); onChanged();
+      toast.success('Goal archived');
+    } catch {
+      toast.error('Failed to archive goal');
+    }
   };
 
   const restoreGoal = async (id: number) => {
-    await fetch(`/api/goals/${id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ is_active: 1 }),
-    });
-    fetchGoals();
-    onChanged();
-    toast.success('Goal restored');
+    try {
+      const res = await fetch(`/api/goals/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ is_active: 1 }),
+      });
+      if (!res.ok) throw new Error();
+      fetchGoals(); onChanged();
+      toast.success('Goal restored');
+    } catch {
+      toast.error('Failed to restore goal');
+    }
   };
 
   const saveGoal = async () => {
