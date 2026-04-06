@@ -131,6 +131,7 @@ export default function ActivityManager({ open, onClose }: ActivityManagerProps)
   }, {});
 
   return (
+  <>
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent id="activity-manager" className="max-w-2xl max-h-[90vh] flex flex-col">
         <DialogHeader>
@@ -317,12 +318,13 @@ export default function ActivityManager({ open, onClose }: ActivityManagerProps)
           )}
         </div>
       </DialogContent>
-
-      <CategoryManager
-        open={categoryManagerOpen}
-        onClose={() => setCategoryManagerOpen(false)}
-        onChanged={fetchCategories}
-      />
     </Dialog>
+
+    <CategoryManager
+      open={categoryManagerOpen}
+      onClose={() => setCategoryManagerOpen(false)}
+      onChanged={fetchCategories}
+    />
+  </>
   );
 }
