@@ -5,7 +5,7 @@ import {
   useSensor, useSensors, closestCenter
 } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable';
-import { Plus, Printer, Loader2, RefreshCw } from 'lucide-react';
+import { Plus, Printer, Loader2, RefreshCw, AlertTriangle } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { toast } from 'sonner';
 import { useReactToPrint } from 'react-to-print';
@@ -189,20 +189,26 @@ export default function DayView({ date, onReset }: DayViewProps) {
     | { type: 'activity'; slotIdx: number; spanSlots: number; entry: ScheduleEntry };
 
   const entryByStartSlot = new Map<number, ScheduleEntry>();
+  const hiddenEntries: ScheduleEntry[] = [];
   for (const entry of entries) {
     const startMin = timeToMinutes(entry.time_slot);
     const startSlot = Math.round((startMin - DAY_START_MIN) / SLOT_INTERVAL_MIN);
     if (startSlot >= 0 && startSlot < TOTAL_SLOTS) {
       entryByStartSlot.set(startSlot, entry);
+    } else {
+      hiddenEntries.push(entry);
     }
   }
 
+  // Detect entries hidden by overlap (covered by a preceding activity's duration)
   const segments: Segment[] = [];
+  const coveredSlots = new Set<number>();
   let si = 0;
   while (si < TOTAL_SLOTS) {
     const entry = entryByStartSlot.get(si);
     if (entry) {
       const spanSlots = Math.max(1, Math.round(entry.duration_minutes / SLOT_INTERVAL_MIN));
+      for (let k = 1; k < spanSlots; k++) coveredSlots.add(si + k);
       segments.push({ type: 'activity', slotIdx: si, spanSlots, entry });
       si += spanSlots;
     } else {
@@ -210,6 +216,10 @@ export default function DayView({ date, onReset }: DayViewProps) {
       si += 1;
     }
   }
+  const overlappedEntries = [...entryByStartSlot.values()].filter(e => {
+    const slot = Math.round((timeToMinutes(e.time_slot) - DAY_START_MIN) / SLOT_INTERVAL_MIN);
+    return coveredSlots.has(slot);
+  });
 
   if (loading) {
     return (
@@ -238,6 +248,26 @@ export default function DayView({ date, onReset }: DayViewProps) {
           </Button>
         </div>
       </div>
+
+      {(hiddenEntries.length > 0 || overlappedEntries.length > 0) && (
+        <div className="mb-3 p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 flex items-start gap-2">
+          <AlertTriangle className="h-4 w-4 text-amber-500 flex-shrink-0 mt-0.5" />
+          <div className="flex-1 text-sm text-amber-800 dark:text-amber-300">
+            <span className="font-medium">
+              {hiddenEntries.length + overlappedEntries.length} hidden activit{hiddenEntries.length + overlappedEntries.length === 1 ? 'y' : 'ies'}
+            </span>
+            {hiddenEntries.length > 0 && (
+              <span> ({hiddenEntries.map(e => e.activity_name).join(', ')} outside visible hours)</span>
+            )}
+            {overlappedEntries.length > 0 && (
+              <span> ({overlappedEntries.map(e => e.activity_name).join(', ')} overlapping another activity)</span>
+            )}
+            {' — '}
+            <button onClick={handleResetToDefaults} className="underline font-medium">Reset to Defaults</button>
+            {' to fix.'}
+          </div>
+        </div>
+      )}
 
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <SortableContext items={entries.map(e => e.id)} strategy={verticalListSortingStrategy}>
