@@ -33,6 +33,7 @@ interface ScheduleEntry {
 
 interface DayViewProps {
   date: string;
+  onReset?: () => void;
 }
 
 const DAY_START_HOUR = 7;
@@ -57,7 +58,7 @@ const DAY_END_MIN = DAY_END_HOUR * 60;
 const TOTAL_SLOTS = (DAY_END_MIN - DAY_START_MIN) / SLOT_INTERVAL_MIN;
 
 
-export default function DayView({ date }: DayViewProps) {
+export default function DayView({ date, onReset }: DayViewProps) {
   const [entries, setEntries] = useState<ScheduleEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingEntry, setEditingEntry] = useState<ScheduleEntry | null>(null);
@@ -171,10 +172,11 @@ export default function DayView({ date }: DayViewProps) {
       if (!res.ok) throw new Error();
       await fetchEntries();
       toast.success('Day reset to defaults');
+      onReset?.();
     } catch {
       toast.error('Failed to reset day');
     }
-  }, [date, fetchEntries]);
+  }, [date, fetchEntries, onReset]);
 
   const handlePrint = useReactToPrint({
     content: () => printRef.current,

@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { format } from 'date-fns';
 import DatePicker from '@/components/shared/DatePicker';
 import CalendarWidget from '@/components/shared/CalendarWidget';
@@ -15,6 +15,8 @@ export default function SchedulerPage() {
   const [selectedDate, setSelectedDate] = useState(() => format(new Date(), 'yyyy-MM-dd'));
   const [viewMode, setViewMode] = useState<ViewMode>('day');
   const [activityManagerOpen, setActivityManagerOpen] = useState(false);
+  const [weekRefreshKey, setWeekRefreshKey] = useState(0);
+  const handleDayReset = useCallback(() => setWeekRefreshKey(k => k + 1), []);
 
   return (
     <div id="scheduler-page" className="max-w-7xl mx-auto p-4">
@@ -71,10 +73,11 @@ export default function SchedulerPage() {
           </div>
 
           {viewMode === 'day' ? (
-            <DayView date={selectedDate} />
+            <DayView date={selectedDate} onReset={handleDayReset} />
           ) : (
             <WeekView
               selectedDate={selectedDate}
+              refreshKey={weekRefreshKey}
               onSelectDay={(date) => {
                 setSelectedDate(date);
                 setViewMode('day');

@@ -1,7 +1,7 @@
 'use client';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { format, parseISO, addWeeks, subWeeks } from 'date-fns';
-import { ChevronLeft, ChevronRight, Printer, Loader2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Printer, Loader2, RefreshCw } from 'lucide-react';
 import { getWeekStart, getWeekDates, formatTime } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
@@ -20,10 +20,11 @@ interface ScheduleEntry {
 
 interface WeekViewProps {
   selectedDate: string;
+  refreshKey?: number;
   onSelectDay: (date: string) => void;
 }
 
-export default function WeekView({ selectedDate, onSelectDay }: WeekViewProps) {
+export default function WeekView({ selectedDate, refreshKey, onSelectDay }: WeekViewProps) {
   const [weekStart, setWeekStart] = useState(() => getWeekStart(parseISO(selectedDate)));
   const [entries, setEntries] = useState<ScheduleEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -32,7 +33,7 @@ export default function WeekView({ selectedDate, onSelectDay }: WeekViewProps) {
   const days = getWeekDates(weekStart);
   const endDate = format(days[6], 'yyyy-MM-dd');
 
-  useEffect(() => {
+  const fetchWeek = useCallback(() => {
     setLoading(true);
     fetch(`/api/schedule?startDate=${weekStart}&endDate=${endDate}`)
       .then(r => r.json())
@@ -40,6 +41,20 @@ export default function WeekView({ selectedDate, onSelectDay }: WeekViewProps) {
       .catch(() => toast.error('Failed to load week'))
       .finally(() => setLoading(false));
   }, [weekStart, endDate]);
+
+  useEffect(() => { fetchWeek(); }, [fetchWeek, refreshKey]);
+
+  const resetDay = async (dateStr: string) => {
+    if (!window.confirm(`Reset ${format(parseISO(dateStr), 'EEEE')} to default activities?`)) return;
+    try {
+      const res = await fetch(`/api/schedule?date=${dateStr}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error();
+      fetchWeek();
+      toast.success('Day reset to defaults');
+    } catch {
+      toast.error('Failed to reset day');
+    }
+  };
 
   const handlePrint = useReactToPrint({
     content: () => printRef.current,
@@ -95,36 +110,46 @@ export default function WeekView({ selectedDate, onSelectDay }: WeekViewProps) {
             const isSelected = dateStr === selectedDate;
             return (
               <div key={dateStr} id={`week-col-${dateStr}`} className="min-w-[100px]">
-                <button
-                  id={`week-header-${dateStr}`}
-                  onClick={() => onSelectDay(dateStr)}
-                  className={`w-full text-center py-2 rounded-t-lg text-sm font-semibold transition-colors min-h-[52px] ${
-                    isSelected
-                      ? 'bg-orange-500 text-white'
-                      : 'bg-gray-50 dark:bg-gray-800 hover:bg-orange-50 dark:hover:bg-orange-900 text-gray-700 dark:text-gray-300'
-                  }`}
-                  aria-label={format(day, 'EEEE MMMM d')}
-                  aria-pressed={isSelected}
-                >
-                  <div>{format(day, 'EEE')}</div>
-                  <div className="text-xs opacity-75">{format(day, 'M/d')}</div>
-                </button>
+                <div className={`rounded-t-lg text-sm font-semibold transition-colors min-h-[52px] flex flex-col ${
+                  isSelected ? 'bg-orange-500 text-white' : 'bg-gray-50 dark:bg-gray-800 text-gray-700 dark:text-gray-300'
+                }`}>
+                  <button
+                    id={`week-header-${dateStr}`}
+                    onClick={() => onSelectDay(dateStr)}
+                    className="flex-1 text-center py-2 hover:opacity-80 transition-opacity w-full"
+                    aria-label={format(day, 'EEEE MMMM d')}
+                    aria-pressed={isSelected}
+                  >
+                    <div>{format(day, 'EEE')}</div>
+                    <div className="text-xs opacity-75">{format(day, 'M/d')}</div>
+                  </button>
+                  <button
+                    onClick={() => resetDay(dateStr)}
+                    className={`flex items-center justify-center pb-1 opacity-40 hover:opacity-100 transition-opacity`}
+                    aria-label={`Reset ${format(day, 'EEEE')} to defaults`}
+                    title="Reset to defaults"
+                  >
+                    <RefreshCw className="h-3 w-3" />
+                  </button>
+                </div>
                 <div className="border border-t-0 rounded-b-lg p-1 min-h-[200px] bg-white dark:bg-gray-800 space-y-1">
                   {dayEntries.length === 0 ? (
                     <p className="text-xs text-gray-300 p-2 text-center">—</p>
                   ) : (
                     dayEntries.map(e => (
-                      <div
+                      <button
                         key={e.id}
                         id={`week-entry-${e.id}`}
-                        className={`text-xs p-1.5 rounded bg-orange-50 dark:bg-orange-900/30 border border-orange-200 dark:border-orange-700 ${
+                        onClick={() => onSelectDay(dateStr)}
+                        className={`w-full text-left text-xs p-1.5 rounded bg-orange-50 dark:bg-orange-900/30 border border-orange-200 dark:border-orange-700 hover:bg-orange-100 dark:hover:bg-orange-900/50 transition-colors ${
                           e.is_completed ? 'opacity-50 line-through' : ''
                         }`}
+                        aria-label={`Edit ${e.activity_name} — go to ${format(day, 'EEEE')}`}
                       >
                         <span className="font-mono text-orange-600 dark:text-orange-400 text-xs">{formatTime(e.time_slot)}</span>
                         <br />
                         <span className="text-gray-700 dark:text-gray-300 leading-tight">{e.activity_name}</span>
-                      </div>
+                      </button>
                     ))
                   )}
                 </div>
