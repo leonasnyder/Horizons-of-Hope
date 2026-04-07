@@ -23,7 +23,10 @@ export default function CategoryManager({ open, onClose, onChanged }: CategoryMa
   const [editColor, setEditColor] = useState('');
 
   const fetchCategories = () => {
-    fetch('/api/categories').then(r => r.json()).then(setCategories).catch(() => {});
+    fetch('/api/categories')
+      .then(r => r.json())
+      .then(data => { if (Array.isArray(data)) setCategories(data); })
+      .catch(() => {});
   };
 
   useEffect(() => { if (open) fetchCategories(); }, [open]);

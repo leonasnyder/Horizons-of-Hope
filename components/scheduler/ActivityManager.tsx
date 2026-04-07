@@ -48,7 +48,10 @@ export default function ActivityManager({ open, onClose }: ActivityManagerProps)
   };
 
   const fetchCategories = () => {
-    fetch('/api/categories').then(r => r.json()).then(setCategories).catch(() => {});
+    fetch('/api/categories')
+      .then(r => r.json())
+      .then(data => { if (Array.isArray(data)) setCategories(data); })
+      .catch(() => {});
   };
 
   useEffect(() => {
