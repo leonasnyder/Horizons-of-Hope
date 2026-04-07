@@ -8,8 +8,8 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
     const id = Number(params.id);
     const rows = await sql`SELECT * FROM activities WHERE id = ${id}`;
     if (rows.length === 0) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-    const defaults = await sql`SELECT * FROM activity_defaults WHERE activity_id = ${id}`;
-    return NextResponse.json({ ...rows[0], defaults: defaults[0] ?? null });
+    const defaults = await sql`SELECT * FROM activity_defaults WHERE activity_id = ${id} ORDER BY default_time`;
+    return NextResponse.json({ ...rows[0], defaults });
   } catch (e) {
     return NextResponse.json({ error: String(e) }, { status: 500 });
   }
@@ -21,15 +21,31 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     const id = Number(params.id);
     const allowed = ['name', 'description', 'category', 'color', 'is_default', 'is_archived'];
     const updates = Object.fromEntries(allowed.filter(f => f in body).map(f => [f, body[f]]));
-    if (Object.keys(updates).length === 0 && !('default_time' in body) && !('default_duration' in body)) {
+    const hasActivityFields = Object.keys(updates).length > 0;
+    const hasDefaultsArray = Array.isArray(body.defaults);
+    const hasLegacyDefault = 'default_time' in body || 'default_duration' in body || 'days_of_week' in body;
+    if (!hasActivityFields && !hasDefaultsArray && !hasLegacyDefault) {
       return NextResponse.json({ error: 'No fields to update' }, { status: 400 });
     }
 
-    if (Object.keys(updates).length > 0) {
+    if (hasActivityFields) {
       await sql`UPDATE activities SET ${sql(updates)} WHERE id = ${id}`;
     }
 
-    if ('default_time' in body || 'default_duration' in body || 'days_of_week' in body) {
+    if (hasDefaultsArray) {
+      // Replace all defaults with the provided array
+      await sql.begin(async sql => {
+        await sql`DELETE FROM activity_defaults WHERE activity_id = ${id}`;
+        for (const d of body.defaults as Array<{ default_time: string; default_duration?: number; days_of_week?: string | null }>) {
+          if (d.default_time) {
+            await sql`
+              INSERT INTO activity_defaults (activity_id, default_time, default_duration, days_of_week)
+              VALUES (${id}, ${d.default_time}, ${d.default_duration ?? 30}, ${d.days_of_week ?? null})
+            `;
+          }
+        }
+      });
+    } else if (hasLegacyDefault) {
       const existing = await sql`SELECT id FROM activity_defaults WHERE activity_id = ${id}`;
       const daysOfWeek = 'days_of_week' in body ? body.days_of_week ?? null : null;
       if (existing.length > 0) {

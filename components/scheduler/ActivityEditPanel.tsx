@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { Plus, X } from 'lucide-react';
+import { Plus, X, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -9,6 +9,12 @@ import { toast } from 'sonner';
 
 interface Category { id: number; name: string; color: string; }
 interface SubActivity { id: number; label: string; sort_order: number; }
+
+interface DefaultSlot {
+  default_time: string;
+  default_duration: number;
+  days_of_week: string | null;
+}
 
 interface ActivityEditPanelProps {
   activityId: number;
@@ -29,6 +35,13 @@ function parseDays(daysOfWeek: string | null | undefined): number[] {
   return daysOfWeek.split(',').map(Number).filter(n => !isNaN(n));
 }
 
+function formatPreview(time: string): string {
+  const [h, m] = time.split(':').map(Number);
+  const period = h >= 12 ? 'PM' : 'AM';
+  const hour = h % 12 || 12;
+  return `${hour}:${String(m).padStart(2, '0')} ${period}`;
+}
+
 export default function ActivityEditPanel({
   activityId,
   initialName,
@@ -46,60 +59,65 @@ export default function ActivityEditPanel({
   const [subActivities, setSubActivities] = useState<SubActivity[]>([]);
   const [newSubLabel, setNewSubLabel] = useState('');
   const [saving, setSaving] = useState(false);
-
-  // Recurring schedule state
   const [isDefault, setIsDefault] = useState(false);
-  const [selectedDays, setSelectedDays] = useState<number[]>(ALL_DAYS);
-  const [defaultTime, setDefaultTime] = useState('09:00');
-  const [defaultDuration, setDefaultDuration] = useState(30);
+
+  // Multiple time slots
+  const [slots, setSlots] = useState<Array<{ time: string; duration: number; days: number[] }>>([
+    { time: '09:00', duration: 30, days: ALL_DAYS },
+  ]);
 
   useEffect(() => {
-    // Load activity details (including defaults)
     fetch(`/api/activities/${activityId}`)
       .then(r => r.json())
       .then(data => {
-        if (data && data.defaults) {
+        if (data && Array.isArray(data.defaults) && data.defaults.length > 0) {
           setIsDefault(true);
-          setDefaultTime(data.defaults.default_time ?? '09:00');
-          setDefaultDuration(data.defaults.default_duration ?? 30);
-          setSelectedDays(parseDays(data.defaults.days_of_week));
+          setSlots(data.defaults.map((d: DefaultSlot) => ({
+            time: d.default_time ?? '09:00',
+            duration: d.default_duration ?? 30,
+            days: parseDays(d.days_of_week),
+          })));
         } else if (data) {
           setIsDefault(!!data.is_default);
         }
       })
       .catch(() => {});
 
-    // Load sub-activities
     fetch(`/api/activities/${activityId}/sub-activities`)
       .then(r => r.json())
       .then(data => { if (Array.isArray(data)) setSubActivities(data); })
       .catch(() => {});
   }, [activityId]);
 
-  const toggleDay = (day: number) => {
-    setSelectedDays(prev =>
-      prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day].sort()
-    );
-  };
+  const updateSlot = (i: number, key: string, value: unknown) =>
+    setSlots(prev => prev.map((s, idx) => idx === i ? { ...s, [key]: value } : s));
 
-  const isAllDays = selectedDays.length === 7;
+  const addSlot = () =>
+    setSlots(prev => [...prev, { time: '09:00', duration: 30, days: ALL_DAYS }]);
 
-  const handleAllDays = () => {
-    setSelectedDays(isAllDays ? [] : ALL_DAYS);
+  const removeSlot = (i: number) =>
+    setSlots(prev => prev.filter((_, idx) => idx !== i));
+
+  const toggleDay = (slotIdx: number, day: number) => {
+    setSlots(prev => prev.map((s, idx) => {
+      if (idx !== slotIdx) return s;
+      const days = s.days.includes(day) ? s.days.filter(d => d !== day) : [...s.days, day].sort();
+      return { ...s, days };
+    }));
   };
 
   const save = async () => {
     if (!name.trim()) { toast.error('Name is required'); return; }
-    if (isDefault && selectedDays.length === 0) {
-      toast.error('Select at least one day for the recurring schedule');
-      return;
+    if (isDefault) {
+      for (const s of slots) {
+        if (s.days.length === 0) {
+          toast.error('Each time slot needs at least one day selected');
+          return;
+        }
+      }
     }
     setSaving(true);
     try {
-      const daysValue = isDefault
-        ? (isAllDays ? null : selectedDays.sort().join(','))
-        : null;
-
       const res = await fetch(`/api/activities/${activityId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -110,10 +128,12 @@ export default function ActivityEditPanel({
           color,
           is_default: isDefault ? 1 : 0,
           ...(isDefault ? {
-            default_time: defaultTime,
-            default_duration: defaultDuration,
-            days_of_week: daysValue,
-          } : {}),
+            defaults: slots.map(s => ({
+              default_time: s.time,
+              default_duration: s.duration,
+              days_of_week: s.days.length === 7 ? null : s.days.sort().join(','),
+            })),
+          } : { defaults: [] }),
         }),
       });
       if (!res.ok) throw new Error();
@@ -225,71 +245,89 @@ export default function ActivityEditPanel({
 
         {isDefault && (
           <div className="space-y-3 pt-1">
-            <div>
-              <p className="text-xs text-gray-500 mb-1.5">Repeat on</p>
-              <div className="flex flex-wrap gap-1">
-                {DAY_LABELS.map((day, i) => (
-                  <button
-                    key={i}
-                    type="button"
-                    onClick={() => toggleDay(i)}
-                    className={`px-2.5 py-1 rounded-md text-xs font-medium border transition-colors ${
-                      selectedDays.includes(i)
-                        ? 'bg-orange-500 text-white border-orange-500'
-                        : 'bg-white dark:bg-gray-700 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-600 hover:border-orange-300'
-                    }`}
-                  >
-                    {day}
-                  </button>
-                ))}
-                <button
-                  type="button"
-                  onClick={handleAllDays}
-                  className={`px-2.5 py-1 rounded-md text-xs font-medium border transition-colors ${
-                    isAllDays
-                      ? 'bg-orange-500 text-white border-orange-500'
-                      : 'bg-white dark:bg-gray-700 text-gray-500 dark:text-gray-400 border-gray-200 dark:border-gray-600 hover:border-orange-300'
-                  }`}
-                >
-                  Every day
-                </button>
+            {slots.map((slot, i) => (
+              <div key={i} className="border rounded-lg p-3 bg-gray-50 dark:bg-gray-900 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-gray-500">
+                    Time slot {slots.length > 1 ? i + 1 : ''}
+                  </span>
+                  {slots.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => removeSlot(i)}
+                      className="p-1 text-gray-400 hover:text-red-500"
+                      aria-label="Remove this time slot"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+                </div>
+
+                <div className="flex gap-3">
+                  <div>
+                    <Label htmlFor={`edit-time-${activityId}-${i}`} className="text-xs">Time</Label>
+                    <Input
+                      id={`edit-time-${activityId}-${i}`}
+                      type="time"
+                      value={slot.time}
+                      onChange={e => updateSlot(i, 'time', e.target.value)}
+                      className="mt-1 w-32"
+                    />
+                    {slot.time && (
+                      <p className="text-xs text-orange-600 mt-0.5 font-medium">{formatPreview(slot.time)}</p>
+                    )}
+                  </div>
+                  <div>
+                    <Label htmlFor={`edit-duration-${activityId}-${i}`} className="text-xs">Duration (min)</Label>
+                    <Input
+                      id={`edit-duration-${activityId}-${i}`}
+                      type="number"
+                      min="5"
+                      max="240"
+                      step="5"
+                      value={slot.duration}
+                      onChange={e => updateSlot(i, 'duration', Number(e.target.value))}
+                      className="mt-1 w-24"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <p className="text-xs text-gray-500 mb-1">Repeat on</p>
+                  <div className="flex flex-wrap gap-1">
+                    {DAY_LABELS.map((day, d) => (
+                      <button
+                        key={d}
+                        type="button"
+                        onClick={() => toggleDay(i, d)}
+                        className={`px-2.5 py-1 rounded-md text-xs font-medium border transition-colors ${
+                          slot.days.includes(d)
+                            ? 'bg-orange-500 text-white border-orange-500'
+                            : 'bg-white dark:bg-gray-700 text-gray-600 dark:text-gray-300 border-gray-200 hover:border-orange-300'
+                        }`}
+                      >
+                        {day}
+                      </button>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={() => updateSlot(i, 'days', slot.days.length === 7 ? [] : ALL_DAYS)}
+                      className={`px-2.5 py-1 rounded-md text-xs font-medium border transition-colors ${
+                        slot.days.length === 7
+                          ? 'bg-orange-500 text-white border-orange-500'
+                          : 'text-gray-500 border-gray-200 hover:border-orange-300'
+                      }`}
+                    >
+                      Every day
+                    </button>
+                  </div>
+                </div>
               </div>
-            </div>
-            <div className="flex gap-3">
-              <div>
-                <Label htmlFor={`edit-time-${activityId}`} className="text-xs">Default time</Label>
-                <Input
-                  id={`edit-time-${activityId}`}
-                  type="time"
-                  value={defaultTime}
-                  onChange={e => setDefaultTime(e.target.value)}
-                  className="mt-1 w-32"
-                />
-                {defaultTime && (
-                  <p className="text-xs text-orange-600 mt-0.5 font-medium">
-                    {(() => {
-                      const [h, m] = defaultTime.split(':').map(Number);
-                      const period = h >= 12 ? 'PM' : 'AM';
-                      const hour = h % 12 || 12;
-                      return `${hour}:${String(m).padStart(2, '0')} ${period}`;
-                    })()}
-                  </p>
-                )}
-              </div>
-              <div>
-                <Label htmlFor={`edit-duration-${activityId}`} className="text-xs">Duration (min)</Label>
-                <Input
-                  id={`edit-duration-${activityId}`}
-                  type="number"
-                  min="5"
-                  max="240"
-                  step="5"
-                  value={defaultDuration}
-                  onChange={e => setDefaultDuration(Number(e.target.value))}
-                  className="mt-1 w-24"
-                />
-              </div>
-            </div>
+            ))}
+
+            <Button type="button" variant="outline" size="sm" onClick={addSlot} className="w-full">
+              <Plus className="h-3.5 w-3.5 mr-1" /> Add another time
+            </Button>
           </div>
         )}
       </div>
