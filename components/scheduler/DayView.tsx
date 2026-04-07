@@ -288,7 +288,7 @@ export default function DayView({ date }: DayViewProps) {
               {entries.map(entry => {
                 const startMin = timeToMinutes(entry.time_slot);
                 const top = (startMin - DAY_START_MIN) / SLOT_INTERVAL_MIN * SLOT_HEIGHT_PX;
-                const height = Math.max(SLOT_HEIGHT_PX, (entry.duration_minutes / SLOT_INTERVAL_MIN) * SLOT_HEIGHT_PX) - 4;
+                const height = Math.max(56, (entry.duration_minutes / SLOT_INTERVAL_MIN) * SLOT_HEIGHT_PX) - 4;
 
                 return (
                   <div
