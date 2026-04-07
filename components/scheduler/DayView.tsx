@@ -227,54 +227,43 @@ export default function DayView({ date }: DayViewProps) {
           <div id="day-view-timeline">
             {segments.map(seg => {
               if (seg.type === 'activity') {
-                // Use CSS grid so time labels show at each 15-min mark within the card
-                const rows = Array.from({ length: seg.spanSlots }, (_, i) => {
+                const slotLabels = Array.from({ length: seg.spanSlots }, (_, i) => {
                   const slotMin = DAY_START_MIN + (seg.slotIdx + i) * SLOT_INTERVAL_MIN;
                   const h = Math.floor(slotMin / 60);
                   const m = slotMin % 60;
-                  const isHour = m === 0;
-                  const isHalf = m === 30;
                   const timeStr = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
-                  return { i, isHour, isHalf, m, timeStr };
+                  return { i, isHour: m === 0, isHalf: m === 30, m, timeStr };
                 });
 
                 return (
                   <div
                     key={seg.slotIdx}
-                    style={{
-                      display: 'grid',
-                      gridTemplateColumns: '64px 1fr',
-                      gridTemplateRows: `repeat(${seg.spanSlots}, minmax(${SLOT_HEIGHT_PX}px, auto))`,
-                    }}
+                    className="flex"
+                    style={{ minHeight: `${seg.spanSlots * SLOT_HEIGHT_PX}px` }}
                   >
-                    {/* One time label per slot within the activity */}
-                    {rows.map(({ i, isHour, isHalf, m, timeStr }) => (
-                      <div
-                        key={i}
-                        style={{ gridRow: i + 1, gridColumn: 1 }}
-                        className="text-right pr-2 pt-1 select-none"
-                      >
-                        {isHour && (
-                          <span className="text-xs font-mono font-bold text-gray-600 dark:text-gray-400">
-                            {formatTime(timeStr)}
-                          </span>
-                        )}
-                        {isHalf && (
-                          <span className="text-[10px] font-mono text-gray-300 dark:text-gray-600">:30</span>
-                        )}
-                        {!isHour && !isHalf && (
-                          <span className="text-[10px] font-mono text-gray-200 dark:text-gray-700">
-                            :{String(m).padStart(2, '0')}
-                          </span>
-                        )}
-                      </div>
-                    ))}
+                    {/* Time labels stacked vertically, one per 15-min slot */}
+                    <div className="w-16 flex-shrink-0 flex flex-col select-none">
+                      {slotLabels.map(({ i, isHour, isHalf, m, timeStr }) => (
+                        <div key={i} className="flex-1 text-right pr-2 pt-1">
+                          {isHour && (
+                            <span className="text-xs font-mono font-bold text-gray-600 dark:text-gray-400">
+                              {formatTime(timeStr)}
+                            </span>
+                          )}
+                          {isHalf && (
+                            <span className="text-[10px] font-mono text-gray-300 dark:text-gray-600">:30</span>
+                          )}
+                          {!isHour && !isHalf && (
+                            <span className="text-[10px] font-mono text-gray-200 dark:text-gray-700">
+                              :{String(m).padStart(2, '0')}
+                            </span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
 
-                    {/* Activity card spanning all rows */}
-                    <div
-                      style={{ gridRow: `1 / ${seg.spanSlots + 1}`, gridColumn: 2 }}
-                      className="border-l border-gray-200 dark:border-gray-600 pl-1 pb-0.5"
-                    >
+                    {/* Activity card filling the full height */}
+                    <div className="flex-1 border-l border-gray-200 dark:border-gray-600 pl-1 pb-0.5">
                       <ActivityCard
                         entry={seg.entry}
                         onUpdate={handleUpdate}
