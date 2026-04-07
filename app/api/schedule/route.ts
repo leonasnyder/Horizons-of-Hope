@@ -74,7 +74,7 @@ export async function GET(req: NextRequest) {
         SELECT DISTINCT date FROM schedule_entries
         WHERE date >= ${startDate} AND date <= ${endDate} AND removed = 0
       `;
-      const existingDates = new Set((existing as Array<{ date: string | Date }>).map(r =>
+      const existingDates = new Set((existing as unknown as Array<{ date: string | Date }>).map(r =>
         typeof r.date === 'string' ? r.date : r.date.toISOString().split('T')[0]
       ));
 
