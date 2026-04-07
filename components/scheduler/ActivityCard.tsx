@@ -35,19 +35,21 @@ interface ScheduleEntryForCard {
 
 interface ActivityCardProps {
   entry: ScheduleEntryForCard;
+  cardMinHeight?: number;
   onUpdate: (id: number, data: Record<string, unknown>) => Promise<void>;
   onRemove: (id: number) => Promise<void>;
   onEdit: (entry: ScheduleEntryForCard) => void;
   onToggleSubActivity: (entryId: number, entrySubActivityId: number, completed: number) => Promise<void>;
 }
 
-export default function ActivityCard({ entry, onUpdate, onRemove, onEdit, onToggleSubActivity }: ActivityCardProps) {
+export default function ActivityCard({ entry, cardMinHeight, onUpdate, onRemove, onEdit, onToggleSubActivity }: ActivityCardProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: entry.id });
 
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
+    ...(cardMinHeight ? { minHeight: `${cardMinHeight}px` } : {}),
   };
 
   const handleComplete = async () => {

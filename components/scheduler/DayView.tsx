@@ -266,6 +266,7 @@ export default function DayView({ date }: DayViewProps) {
                     <div className="flex-1 border-l border-gray-200 dark:border-gray-600 pl-1 pb-0.5">
                       <ActivityCard
                         entry={seg.entry}
+                        cardMinHeight={seg.spanSlots * SLOT_HEIGHT_PX - 4}
                         onUpdate={handleUpdate}
                         onRemove={handleRemove}
                         onEdit={setEditingEntry}
