@@ -15,7 +15,7 @@ import EditEntryModal from './EditEntryModal';
 import AddActivityModal from './AddActivityModal';
 import PrintDayView from './PrintDayView';
 import { Button } from '@/components/ui/button';
-import { generateTimeSlots, formatTime } from '@/lib/utils';
+import { formatTime } from '@/lib/utils';
 import { ExportDayDocButton } from '@/components/shared/ExportButtons';
 
 interface ScheduleEntry {
@@ -35,12 +35,38 @@ interface DayViewProps {
   date: string;
 }
 
+const DAY_START_HOUR = 7;
+const DAY_END_HOUR = 20;
+const SLOT_INTERVAL_MIN = 15;
+const SLOT_HEIGHT_PX = 24; // px per 15-minute slot
+
+function timeToMinutes(timeStr: string): number {
+  const [h, m] = timeStr.split(':').map(Number);
+  return h * 60 + m;
+}
+
+function minutesToSlot(totalMinutes: number): string {
+  const h = Math.floor(totalMinutes / 60);
+  const m = totalMinutes % 60;
+  // Snap to nearest 15-min interval
+  const snappedM = Math.round(m / 15) * 15;
+  const snappedH = h + Math.floor(snappedM / 60);
+  const finalM = snappedM % 60;
+  return `${String(snappedH).padStart(2, '0')}:${String(finalM).padStart(2, '0')}`;
+}
+
+const DAY_START_MIN = DAY_START_HOUR * 60;
+const DAY_END_MIN = DAY_END_HOUR * 60;
+const TOTAL_SLOTS = (DAY_END_MIN - DAY_START_MIN) / SLOT_INTERVAL_MIN;
+const TIMELINE_HEIGHT = TOTAL_SLOTS * SLOT_HEIGHT_PX;
+
 export default function DayView({ date }: DayViewProps) {
   const [entries, setEntries] = useState<ScheduleEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingEntry, setEditingEntry] = useState<ScheduleEntry | null>(null);
   const [addingToSlot, setAddingToSlot] = useState<string | null>(null);
   const printRef = useRef<HTMLDivElement>(null);
+  const timelineRef = useRef<HTMLDivElement>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -88,7 +114,6 @@ export default function DayView({ date }: DayViewProps) {
   }, [fetchEntries]);
 
   const handleToggleSubActivity = useCallback(async (entryId: number, entrySubActivityId: number, completed: number) => {
-    // Optimistic update
     setEntries(prev => prev.map(e =>
       e.id === entryId
         ? { ...e, entry_sub_activities: e.entry_sub_activities.map(s => s.id === entrySubActivityId ? { ...s, completed } : s) }
@@ -102,7 +127,6 @@ export default function DayView({ date }: DayViewProps) {
       });
       if (!res.ok) throw new Error();
     } catch {
-      // Rollback on failure
       setEntries(prev => prev.map(e =>
         e.id === entryId
           ? { ...e, entry_sub_activities: e.entry_sub_activities.map(s => s.id === entrySubActivityId ? { ...s, completed: completed ? 0 : 1 } : s) }
@@ -120,12 +144,11 @@ export default function DayView({ date }: DayViewProps) {
     const newIndex = entries.findIndex(e => e.id === over.id);
     if (oldIndex === -1 || newIndex === -1) return;
 
-    // Swap time slots between the two entries
     const draggedEntry = entries[oldIndex];
     const targetEntry = entries[newIndex];
 
     const newEntries = arrayMove(entries, oldIndex, newIndex);
-    setEntries(newEntries); // Optimistic update
+    setEntries(newEntries);
 
     try {
       await Promise.all([
@@ -143,37 +166,48 @@ export default function DayView({ date }: DayViewProps) {
       await fetchEntries();
     } catch {
       toast.error('Failed to reorder');
-      await fetchEntries(); // Revert
+      await fetchEntries();
     }
   }, [entries, fetchEntries]);
+
+  const handleTimelineClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    if (!timelineRef.current) return;
+    // Don't open modal if clicking on an existing activity card
+    if ((e.target as HTMLElement).closest('[data-activity-card]')) return;
+    const rect = timelineRef.current.getBoundingClientRect();
+    const y = e.clientY - rect.top + timelineRef.current.scrollTop;
+    const clickedMin = Math.floor(y / SLOT_HEIGHT_PX) * SLOT_INTERVAL_MIN + DAY_START_MIN;
+    const snapped = minutesToSlot(Math.max(DAY_START_MIN, Math.min(DAY_END_MIN - SLOT_INTERVAL_MIN, clickedMin)));
+    setAddingToSlot(snapped);
+  }, []);
 
   const handlePrint = useReactToPrint({
     content: () => printRef.current,
     documentTitle: `Schedule-${date}`,
   });
 
-  const SLOT_INTERVAL_MIN = 30;
-  const SLOT_HEIGHT_PX = 60; // visual height per 30-minute slot
+  // Generate time labels at every 15-minute mark
+  const hourMarks: Array<{ min: number; label: string; isHour: boolean }> = [];
+  for (let min = DAY_START_MIN; min <= DAY_END_MIN; min += SLOT_INTERVAL_MIN) {
+    const h = Math.floor(min / 60);
+    const m = min % 60;
+    const isHour = m === 0;
+    hourMarks.push({
+      min,
+      label: isHour
+        ? formatTime(`${String(h).padStart(2, '0')}:00`)
+        : `${String(m).padStart(2, '0')}`,
+      isHour,
+    });
+  }
 
-  const timeSlots = generateTimeSlots(7, 18, SLOT_INTERVAL_MIN);
-  const entriesBySlot = entries.reduce<Record<string, ScheduleEntry[]>>((acc, e) => {
-    (acc[e.time_slot] ??= []).push(e);
-    return acc;
-  }, {});
-
-  // Slots consumed by a multi-slot activity (should not show add button)
-  const consumedSlots = new Set<string>();
-  entries.forEach(entry => {
-    const [h, m] = entry.time_slot.split(':').map(Number);
-    let mins = h * 60 + m + SLOT_INTERVAL_MIN;
-    const endMins = h * 60 + m + entry.duration_minutes;
-    while (mins < endMins) {
-      const hh = Math.floor(mins / 60);
-      const mm = mins % 60;
-      consumedSlots.add(`${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`);
-      mins += SLOT_INTERVAL_MIN;
-    }
-  });
+  // Generate all 15-min grid lines
+  const gridLines: Array<{ min: number; isHour: boolean; isHalf: boolean }> = [];
+  for (let min = DAY_START_MIN; min < DAY_END_MIN; min += SLOT_INTERVAL_MIN) {
+    const isHour = min % 60 === 0;
+    const isHalf = min % 30 === 0 && !isHour;
+    gridLines.push({ min, isHour, isHalf });
+  }
 
   if (loading) {
     return (
@@ -202,48 +236,79 @@ export default function DayView({ date }: DayViewProps) {
 
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <SortableContext items={entries.map(e => e.id)} strategy={verticalListSortingStrategy}>
-          <div id="day-view-timeline" className="space-y-1">
-            {timeSlots.map(slot => {
-              const slotEntries = entriesBySlot[slot] ?? [];
-              return (
-                <div
-                  key={slot}
-                  id={`time-slot-${slot.replace(':', '-')}`}
-                  className="flex gap-2 min-h-[52px]"
-                >
-                  <div className="w-16 flex-shrink-0 text-xs text-gray-400 font-mono pt-4 text-right pr-2 select-none">
-                    {formatTime(slot)}
+          {/* Timeline container */}
+          <div
+            id="day-view-timeline"
+            ref={timelineRef}
+            className="relative flex gap-0 select-none"
+            style={{ height: `${TIMELINE_HEIGHT}px` }}
+            onClick={handleTimelineClick}
+          >
+            {/* Time labels column */}
+            <div className="w-16 flex-shrink-0 relative">
+              {hourMarks.map(({ min, label, isHour }) => {
+                const top = (min - DAY_START_MIN) / SLOT_INTERVAL_MIN * SLOT_HEIGHT_PX;
+                return (
+                  <div
+                    key={min}
+                    className={`absolute right-2 font-mono -translate-y-2 ${
+                      isHour
+                        ? 'text-xs text-gray-500 font-semibold'
+                        : 'text-[10px] text-gray-300 dark:text-gray-600'
+                    }`}
+                    style={{ top }}
+                  >
+                    {label}
                   </div>
-                  <div className="flex-1 border-l border-gray-100 dark:border-gray-700 pl-3 pb-1 space-y-1">
-                    {slotEntries.length > 0 ? (
-                      slotEntries.map(entry => (
-                        <ActivityCard
-                          key={entry.id}
-                          entry={entry}
-                          slotHeightPx={SLOT_HEIGHT_PX}
-                          slotIntervalMin={SLOT_INTERVAL_MIN}
-                          onUpdate={handleUpdate}
-                          onRemove={handleRemove}
-                          onEdit={setEditingEntry}
-                          onToggleSubActivity={handleToggleSubActivity}
-                        />
-                      ))
-                    ) : consumedSlots.has(slot) ? (
-                      <div className="h-10 border-l-2 border-orange-200 dark:border-orange-800 ml-1 opacity-40" />
-                    ) : (
-                      <button
-                        id={`add-to-slot-${slot.replace(':', '-')}`}
-                        onClick={() => setAddingToSlot(slot)}
-                        className="w-full h-10 border border-dashed border-gray-200 dark:border-gray-700 rounded-lg text-gray-300 hover:border-orange-300 hover:text-orange-400 dark:hover:border-orange-700 transition-colors flex items-center justify-center gap-1 text-sm"
-                        aria-label={`Add activity at ${formatTime(slot)}`}
-                      >
-                        <Plus className="h-3 w-3" /> Add
-                      </button>
-                    )}
+                );
+              })}
+            </div>
+
+            {/* Grid + cards area */}
+            <div className="flex-1 relative border-l border-gray-200 dark:border-gray-700">
+              {/* Grid lines */}
+              {gridLines.map(({ min, isHour, isHalf }) => {
+                const top = (min - DAY_START_MIN) / SLOT_INTERVAL_MIN * SLOT_HEIGHT_PX;
+                return (
+                  <div
+                    key={min}
+                    className={`absolute left-0 right-0 pointer-events-none ${
+                      isHour
+                        ? 'border-t border-gray-200 dark:border-gray-600'
+                        : isHalf
+                        ? 'border-t border-gray-100 dark:border-gray-700 border-dashed'
+                        : 'border-t border-gray-50 dark:border-gray-800'
+                    }`}
+                    style={{ top }}
+                  />
+                );
+              })}
+
+              {/* Activity cards — absolutely positioned */}
+              {entries.map(entry => {
+                const startMin = timeToMinutes(entry.time_slot);
+                const top = (startMin - DAY_START_MIN) / SLOT_INTERVAL_MIN * SLOT_HEIGHT_PX;
+                const height = Math.max(SLOT_HEIGHT_PX, (entry.duration_minutes / SLOT_INTERVAL_MIN) * SLOT_HEIGHT_PX) - 4;
+
+                return (
+                  <div
+                    key={entry.id}
+                    data-activity-card
+                    className="absolute left-1 right-1 z-10"
+                    style={{ top: `${top}px`, height: `${height}px` }}
+                    onClick={e => e.stopPropagation()}
+                  >
+                    <ActivityCard
+                      entry={entry}
+                      onUpdate={handleUpdate}
+                      onRemove={handleRemove}
+                      onEdit={setEditingEntry}
+                      onToggleSubActivity={handleToggleSubActivity}
+                    />
                   </div>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
         </SortableContext>
       </DndContext>
