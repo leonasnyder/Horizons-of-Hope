@@ -143,6 +143,18 @@ export async function GET(req: NextRequest) {
   }
 }
 
+export async function DELETE(req: NextRequest) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const date = searchParams.get('date');
+    if (!date) return NextResponse.json({ error: 'date required' }, { status: 400 });
+    await sql`DELETE FROM schedule_entries WHERE date = ${date}`;
+    return NextResponse.json({ success: true });
+  } catch (e) {
+    return NextResponse.json({ error: String(e) }, { status: 500 });
+  }
+}
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();

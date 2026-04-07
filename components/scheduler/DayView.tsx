@@ -5,7 +5,7 @@ import {
   useSensor, useSensors, closestCenter
 } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable';
-import { Plus, Printer, Loader2 } from 'lucide-react';
+import { Plus, Printer, Loader2, RefreshCw } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { toast } from 'sonner';
 import { useReactToPrint } from 'react-to-print';
@@ -164,6 +164,17 @@ export default function DayView({ date }: DayViewProps) {
     }
   }, [entries, fetchEntries]);
 
+  const handleResetToDefaults = useCallback(async () => {
+    if (!window.confirm('Reset this day to default activities? All current entries for this day will be removed.')) return;
+    try {
+      await fetch(`/api/schedule?date=${date}`, { method: 'DELETE' });
+      await fetchEntries();
+      toast.success('Day reset to defaults');
+    } catch {
+      toast.error('Failed to reset day');
+    }
+  }, [date, fetchEntries]);
+
   const handlePrint = useReactToPrint({
     content: () => printRef.current,
     documentTitle: `Schedule-${date}`,
@@ -212,6 +223,9 @@ export default function DayView({ date }: DayViewProps) {
           {format(parseISO(date), 'EEEE, MMMM d')}
         </h2>
         <div className="flex gap-2 flex-wrap">
+          <Button id="day-view-reset" variant="outline" size="sm" onClick={handleResetToDefaults}>
+            <RefreshCw className="h-4 w-4 mr-1" /> Reset to Defaults
+          </Button>
           <Button id="day-view-print" variant="outline" size="sm" onClick={handlePrint}>
             <Printer className="h-4 w-4 mr-1" /> Print Day
           </Button>
