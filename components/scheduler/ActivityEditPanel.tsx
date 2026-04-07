@@ -265,6 +265,16 @@ export default function ActivityEditPanel({
                   onChange={e => setDefaultTime(e.target.value)}
                   className="mt-1 w-32"
                 />
+                {defaultTime && (
+                  <p className="text-xs text-orange-600 mt-0.5 font-medium">
+                    {(() => {
+                      const [h, m] = defaultTime.split(':').map(Number);
+                      const period = h >= 12 ? 'PM' : 'AM';
+                      const hour = h % 12 || 12;
+                      return `${hour}:${String(m).padStart(2, '0')} ${period}`;
+                    })()}
+                  </p>
+                )}
               </div>
               <div>
                 <Label htmlFor={`edit-duration-${activityId}`} className="text-xs">Duration (min)</Label>

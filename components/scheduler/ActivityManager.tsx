@@ -233,6 +233,16 @@ export default function ActivityManager({ open, onClose }: ActivityManagerProps)
                   onChange={e => setNewActivity(p => ({ ...p, default_time: e.target.value }))}
                   className="mt-1"
                 />
+                {newActivity.default_time && (
+                  <p className="text-xs text-orange-600 mt-0.5 font-medium">
+                    {(() => {
+                      const [h, m] = newActivity.default_time.split(':').map(Number);
+                      const period = h >= 12 ? 'PM' : 'AM';
+                      const hour = h % 12 || 12;
+                      return `${hour}:${String(m).padStart(2, '0')} ${period}`;
+                    })()}
+                  </p>
+                )}
               </div>
               <div>
                 <Label htmlFor="new-activity-duration">Default Duration (min)</Label>
