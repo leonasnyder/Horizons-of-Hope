@@ -81,11 +81,11 @@ export default function EditEntryModal({ entry, onClose, onSave }: EditEntryModa
 
   return (
     <Dialog open onOpenChange={onClose}>
-      <DialogContent id="edit-entry-modal">
+      <DialogContent id="edit-entry-modal" className="flex flex-col max-h-[90vh]">
         <DialogHeader>
           <DialogTitle>Edit: {entry.activity_name}</DialogTitle>
         </DialogHeader>
-        <div className="space-y-4 py-2">
+        <div className="space-y-4 py-2 overflow-y-auto flex-1">
           <div>
             <Label htmlFor="edit-entry-time">Time</Label>
             <Input
