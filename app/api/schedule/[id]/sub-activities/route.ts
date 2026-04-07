@@ -3,6 +3,32 @@ import sql from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
 
+// Replace all sub-activities for an entry with the given sub_activity_ids
+export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
+  try {
+    const entryId = Number(params.id);
+    const { sub_activity_ids } = await req.json();
+    if (!Array.isArray(sub_activity_ids)) {
+      return NextResponse.json({ error: 'sub_activity_ids must be an array' }, { status: 400 });
+    }
+    await sql.begin(async sql => {
+      await sql`DELETE FROM schedule_entry_sub_activities WHERE entry_id = ${entryId}`;
+      for (const subId of sub_activity_ids as number[]) {
+        const labels = await sql`SELECT label FROM activity_sub_activities WHERE id = ${subId} AND is_active = 1`;
+        if (labels.length > 0) {
+          await sql`
+            INSERT INTO schedule_entry_sub_activities (entry_id, sub_activity_id, label, completed)
+            VALUES (${entryId}, ${subId}, ${(labels[0] as { label: string }).label}, 0)
+          `;
+        }
+      }
+    });
+    return NextResponse.json({ success: true });
+  } catch (e) {
+    return NextResponse.json({ error: String(e) }, { status: 500 });
+  }
+}
+
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
   try {
     const entryId = Number(params.id);
