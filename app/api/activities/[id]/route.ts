@@ -29,18 +29,19 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       await sql`UPDATE activities SET ${sql(updates)} WHERE id = ${id}`;
     }
 
-    if ('default_time' in body || 'default_duration' in body) {
+    if ('default_time' in body || 'default_duration' in body || 'days_of_week' in body) {
       const existing = await sql`SELECT id FROM activity_defaults WHERE activity_id = ${id}`;
+      const daysOfWeek = 'days_of_week' in body ? body.days_of_week ?? null : null;
       if (existing.length > 0) {
         await sql`
           UPDATE activity_defaults
-          SET default_time = ${body.default_time}, default_duration = ${body.default_duration ?? 30}
+          SET default_time = ${body.default_time}, default_duration = ${body.default_duration ?? 30}, days_of_week = ${daysOfWeek}
           WHERE activity_id = ${id}
         `;
       } else {
         await sql`
-          INSERT INTO activity_defaults (activity_id, default_time, default_duration)
-          VALUES (${id}, ${body.default_time}, ${body.default_duration ?? 30})
+          INSERT INTO activity_defaults (activity_id, default_time, default_duration, days_of_week)
+          VALUES (${id}, ${body.default_time}, ${body.default_duration ?? 30}, ${daysOfWeek})
         `;
       }
     }

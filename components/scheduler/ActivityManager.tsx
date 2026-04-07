@@ -10,6 +10,9 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
 
+const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const ALL_DAYS = [0, 1, 2, 3, 4, 5, 6];
+
 interface Activity {
   id: number;
   name: string;
@@ -39,6 +42,7 @@ export default function ActivityManager({ open, onClose }: ActivityManagerProps)
     name: '', description: '', category: '', color: '#F97316',
     is_default: false, default_time: '09:00', default_duration: 30,
   });
+  const [newActivityDays, setNewActivityDays] = useState<number[]>(ALL_DAYS);
 
   const fetchActivities = () => {
     fetch('/api/activities?includeArchived=true')
@@ -102,7 +106,15 @@ export default function ActivityManager({ open, onClose }: ActivityManagerProps)
 
   const createActivity = async () => {
     if (!validateNew()) return;
+    if (newActivity.is_default && newActivityDays.length === 0) {
+      toast.error('Select at least one day for the recurring schedule');
+      return;
+    }
     try {
+      const isAllDays = newActivityDays.length === 7;
+      const daysValue = newActivity.is_default
+        ? (isAllDays ? null : newActivityDays.sort().join(','))
+        : null;
       const res = await fetch('/api/activities', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -114,12 +126,14 @@ export default function ActivityManager({ open, onClose }: ActivityManagerProps)
           is_default: newActivity.is_default ? 1 : 0,
           default_time: newActivity.default_time,
           default_duration: newActivity.default_duration,
+          days_of_week: daysValue,
         }),
       });
       if (!res.ok) throw new Error();
       fetchActivities();
       setAdding(false);
       setNewActivity({ name: '', description: '', category: '', color: '#F97316', is_default: false, default_time: '09:00', default_duration: 30 });
+      setNewActivityDays(ALL_DAYS);
       setErrors({});
       toast.success('Activity created');
     } catch {
@@ -222,13 +236,49 @@ export default function ActivityManager({ open, onClose }: ActivityManagerProps)
                   className="mt-1"
                 />
               </div>
-              <div className="col-span-2 flex items-center gap-3">
-                <Switch
-                  id="new-activity-default"
-                  checked={newActivity.is_default}
-                  onCheckedChange={v => setNewActivity(p => ({ ...p, is_default: v }))}
-                />
-                <Label htmlFor="new-activity-default">Include in daily auto-schedule</Label>
+              <div className="col-span-2 space-y-2">
+                <div className="flex items-center gap-3">
+                  <Switch
+                    id="new-activity-default"
+                    checked={newActivity.is_default}
+                    onCheckedChange={v => setNewActivity(p => ({ ...p, is_default: v }))}
+                  />
+                  <Label htmlFor="new-activity-default">Auto-schedule (recurring)</Label>
+                </div>
+                {newActivity.is_default && (
+                  <div className="pl-2 border-l-2 border-orange-200 space-y-2">
+                    <p className="text-xs text-gray-500">Repeat on</p>
+                    <div className="flex flex-wrap gap-1">
+                      {DAY_LABELS.map((day, i) => (
+                        <button
+                          key={i}
+                          type="button"
+                          onClick={() => setNewActivityDays(prev =>
+                            prev.includes(i) ? prev.filter(d => d !== i) : [...prev, i].sort()
+                          )}
+                          className={`px-2.5 py-1 rounded-md text-xs font-medium border transition-colors ${
+                            newActivityDays.includes(i)
+                              ? 'bg-orange-500 text-white border-orange-500'
+                              : 'bg-white dark:bg-gray-700 text-gray-600 border-gray-200 hover:border-orange-300'
+                          }`}
+                        >
+                          {day}
+                        </button>
+                      ))}
+                      <button
+                        type="button"
+                        onClick={() => setNewActivityDays(newActivityDays.length === 7 ? [] : ALL_DAYS)}
+                        className={`px-2.5 py-1 rounded-md text-xs font-medium border transition-colors ${
+                          newActivityDays.length === 7
+                            ? 'bg-orange-500 text-white border-orange-500'
+                            : 'text-gray-500 border-gray-200 hover:border-orange-300'
+                        }`}
+                      >
+                        Every day
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
             <div className="flex gap-2 justify-end">

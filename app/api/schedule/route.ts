@@ -31,17 +31,22 @@ export async function GET(req: NextRequest) {
         SELECT COUNT(*) as c FROM schedule_entries WHERE date = ${date} AND removed = 0
       `;
       if (Number(countResult[0].c) === 0) {
-        const defaults = await sql`
-          SELECT a.id as activity_id, ad.default_time, ad.default_duration
+        const dayOfWeek = new Date(date + 'T12:00:00').getDay(); // 0=Sun, 1=Mon, ..., 6=Sat
+        const allDefaults = await sql`
+          SELECT a.id as activity_id, ad.default_time, ad.default_duration, ad.days_of_week
           FROM activities a
           JOIN activity_defaults ad ON a.id = ad.activity_id
           WHERE a.is_default = 1 AND a.is_archived = 0
           ORDER BY ad.default_time
         `;
+        const defaults = (allDefaults as unknown as Array<{ activity_id: number; default_time: string; default_duration: number; days_of_week: string | null }>).filter(d => {
+          if (!d.days_of_week) return true;
+          return d.days_of_week.split(',').map(Number).includes(dayOfWeek);
+        });
         if (defaults.length > 0) {
           const weekStart = getWeekStart(new Date(date + 'T12:00:00'));
           await sql.begin(async sql => {
-            for (const d of defaults as unknown as Array<{ activity_id: number; default_time: string; default_duration: number }>) {
+            for (const d of defaults) {
               await sql`
                 INSERT INTO schedule_entries (activity_id, date, time_slot, duration_minutes)
                 VALUES (${d.activity_id}, ${date}, ${d.default_time}, ${d.default_duration})

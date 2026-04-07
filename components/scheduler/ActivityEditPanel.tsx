@@ -4,6 +4,7 @@ import { Plus, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
 
 interface Category { id: number; name: string; color: string; }
@@ -18,6 +19,14 @@ interface ActivityEditPanelProps {
   categories: Category[];
   onSaved: () => void;
   onCancel: () => void;
+}
+
+const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const ALL_DAYS = [0, 1, 2, 3, 4, 5, 6];
+
+function parseDays(daysOfWeek: string | null | undefined): number[] {
+  if (!daysOfWeek) return ALL_DAYS;
+  return daysOfWeek.split(',').map(Number).filter(n => !isNaN(n));
 }
 
 export default function ActivityEditPanel({
@@ -38,17 +47,59 @@ export default function ActivityEditPanel({
   const [newSubLabel, setNewSubLabel] = useState('');
   const [saving, setSaving] = useState(false);
 
+  // Recurring schedule state
+  const [isDefault, setIsDefault] = useState(false);
+  const [selectedDays, setSelectedDays] = useState<number[]>(ALL_DAYS);
+  const [defaultTime, setDefaultTime] = useState('09:00');
+  const [defaultDuration, setDefaultDuration] = useState(30);
+
   useEffect(() => {
+    // Load activity details (including defaults)
+    fetch(`/api/activities/${activityId}`)
+      .then(r => r.json())
+      .then(data => {
+        if (data && data.defaults) {
+          setIsDefault(true);
+          setDefaultTime(data.defaults.default_time ?? '09:00');
+          setDefaultDuration(data.defaults.default_duration ?? 30);
+          setSelectedDays(parseDays(data.defaults.days_of_week));
+        } else if (data) {
+          setIsDefault(!!data.is_default);
+        }
+      })
+      .catch(() => {});
+
+    // Load sub-activities
     fetch(`/api/activities/${activityId}/sub-activities`)
       .then(r => r.json())
       .then(data => { if (Array.isArray(data)) setSubActivities(data); })
       .catch(() => {});
   }, [activityId]);
 
+  const toggleDay = (day: number) => {
+    setSelectedDays(prev =>
+      prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day].sort()
+    );
+  };
+
+  const isAllDays = selectedDays.length === 7;
+
+  const handleAllDays = () => {
+    setSelectedDays(isAllDays ? [] : ALL_DAYS);
+  };
+
   const save = async () => {
     if (!name.trim()) { toast.error('Name is required'); return; }
+    if (isDefault && selectedDays.length === 0) {
+      toast.error('Select at least one day for the recurring schedule');
+      return;
+    }
     setSaving(true);
     try {
+      const daysValue = isDefault
+        ? (isAllDays ? null : selectedDays.sort().join(','))
+        : null;
+
       const res = await fetch(`/api/activities/${activityId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -57,6 +108,12 @@ export default function ActivityEditPanel({
           description: description.trim() || null,
           category: category || null,
           color,
+          is_default: isDefault ? 1 : 0,
+          ...(isDefault ? {
+            default_time: defaultTime,
+            default_duration: defaultDuration,
+            days_of_week: daysValue,
+          } : {}),
         }),
       });
       if (!res.ok) throw new Error();
@@ -127,7 +184,6 @@ export default function ActivityEditPanel({
           </select>
         </div>
 
-        {/* Description */}
         <div className="col-span-2">
           <Label htmlFor={`edit-desc-${activityId}`}>Description</Label>
           <Input
@@ -139,7 +195,6 @@ export default function ActivityEditPanel({
           />
         </div>
 
-        {/* Color */}
         <div>
           <Label>Color</Label>
           <div className="flex items-center gap-2 mt-1">
@@ -153,6 +208,80 @@ export default function ActivityEditPanel({
             <span className="text-sm text-gray-500">{color}</span>
           </div>
         </div>
+      </div>
+
+      {/* Recurring Schedule */}
+      <div className="border rounded-lg p-3 bg-white dark:bg-gray-800 space-y-3">
+        <div className="flex items-center gap-3">
+          <Switch
+            id={`edit-recurring-${activityId}`}
+            checked={isDefault}
+            onCheckedChange={setIsDefault}
+          />
+          <Label htmlFor={`edit-recurring-${activityId}`} className="font-medium">
+            Auto-schedule (recurring)
+          </Label>
+        </div>
+
+        {isDefault && (
+          <div className="space-y-3 pt-1">
+            <div>
+              <p className="text-xs text-gray-500 mb-1.5">Repeat on</p>
+              <div className="flex flex-wrap gap-1">
+                {DAY_LABELS.map((day, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    onClick={() => toggleDay(i)}
+                    className={`px-2.5 py-1 rounded-md text-xs font-medium border transition-colors ${
+                      selectedDays.includes(i)
+                        ? 'bg-orange-500 text-white border-orange-500'
+                        : 'bg-white dark:bg-gray-700 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-600 hover:border-orange-300'
+                    }`}
+                  >
+                    {day}
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  onClick={handleAllDays}
+                  className={`px-2.5 py-1 rounded-md text-xs font-medium border transition-colors ${
+                    isAllDays
+                      ? 'bg-orange-500 text-white border-orange-500'
+                      : 'bg-white dark:bg-gray-700 text-gray-500 dark:text-gray-400 border-gray-200 dark:border-gray-600 hover:border-orange-300'
+                  }`}
+                >
+                  Every day
+                </button>
+              </div>
+            </div>
+            <div className="flex gap-3">
+              <div>
+                <Label htmlFor={`edit-time-${activityId}`} className="text-xs">Default time</Label>
+                <Input
+                  id={`edit-time-${activityId}`}
+                  type="time"
+                  value={defaultTime}
+                  onChange={e => setDefaultTime(e.target.value)}
+                  className="mt-1 w-32"
+                />
+              </div>
+              <div>
+                <Label htmlFor={`edit-duration-${activityId}`} className="text-xs">Duration (min)</Label>
+                <Input
+                  id={`edit-duration-${activityId}`}
+                  type="number"
+                  min="5"
+                  max="240"
+                  step="5"
+                  value={defaultDuration}
+                  onChange={e => setDefaultDuration(Number(e.target.value))}
+                  className="mt-1 w-24"
+                />
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Sub-activities */}

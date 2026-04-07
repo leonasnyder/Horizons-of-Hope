@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { name, description, category, color, is_default, default_time, default_duration } = body;
+    const { name, description, category, color, is_default, default_time, default_duration, days_of_week } = body;
     if (!name) return NextResponse.json({ error: 'name is required' }, { status: 400 });
 
     const [activity] = await sql`
@@ -30,8 +30,8 @@ export async function POST(req: NextRequest) {
 
     if (default_time) {
       await sql`
-        INSERT INTO activity_defaults (activity_id, default_time, default_duration)
-        VALUES (${activity.id}, ${default_time}, ${default_duration ?? 30})
+        INSERT INTO activity_defaults (activity_id, default_time, default_duration, days_of_week)
+        VALUES (${activity.id}, ${default_time}, ${default_duration ?? 30}, ${days_of_week ?? null})
       `;
     }
 
