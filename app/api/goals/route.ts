@@ -7,9 +7,9 @@ export async function GET() {
   try {
     const goals = await sql`SELECT * FROM goals ORDER BY sort_order, name`;
     const subcats = await sql`SELECT * FROM goal_subcategories WHERE is_active = 1 ORDER BY goal_id, sort_order`;
-    const result = (goals as Array<{ id: number } & Record<string, unknown>>).map(g => ({
+    const result = (goals as unknown as Array<{ id: number } & Record<string, unknown>>).map(g => ({
       ...g,
-      subcategories: (subcats as Array<{ goal_id: number } & Record<string, unknown>>).filter(s => s.goal_id === g.id),
+      subcategories: (subcats as unknown as Array<{ goal_id: number } & Record<string, unknown>>).filter(s => s.goal_id === g.id),
     }));
     return NextResponse.json(result);
   } catch (e) {
@@ -32,7 +32,8 @@ export async function POST(req: NextRequest) {
     `;
 
     if (Array.isArray(subcategories)) {
-      for (const [i, s] of subcategories.entries()) {
+      for (let i = 0; i < subcategories.length; i++) {
+        const s = subcategories[i];
         await sql`
           INSERT INTO goal_subcategories (goal_id, response_type, label, sort_order)
           VALUES (${goal.id}, ${s.response_type}, ${s.label}, ${s.sort_order ?? i})

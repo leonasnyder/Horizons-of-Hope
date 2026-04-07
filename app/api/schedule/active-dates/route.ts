@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
       WHERE date LIKE ${month + '%'} AND removed = 0
       ORDER BY date
     `;
-    return NextResponse.json(rows.map((r: { date: string }) => r.date));
+    return NextResponse.json((rows as unknown as Array<{ date: string }>).map(r => r.date));
   } catch (e) {
     return NextResponse.json({ error: String(e) }, { status: 500 });
   }

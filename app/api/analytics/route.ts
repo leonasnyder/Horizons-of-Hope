@@ -71,7 +71,7 @@ export async function GET(req: NextRequest) {
       date,
       todaySummary,
       goalSummary,
-      trend: (trend as Array<{ date: string; total: string; correct: string }>).map(t => ({
+      trend: (trend as unknown as Array<{ date: string; total: string; correct: string }>).map(t => ({
         ...t,
         total: Number(t.total),
         correct: Number(t.correct),

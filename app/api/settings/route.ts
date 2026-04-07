@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic';
 
 export async function GET() {
   try {
-    const rows = await sql`SELECT * FROM app_settings` as Array<{ key: string; value: string }>;
+    const rows = await sql`SELECT * FROM app_settings` as unknown as Array<{ key: string; value: string }>;
     const settings = Object.fromEntries(rows.map(r => [r.key, r.value]));
     const defaults = {
       notifications_enabled: 'false',

@@ -11,7 +11,7 @@ async function attachSubActivities(entries: Record<string, unknown>[]): Promise<
     SELECT * FROM schedule_entry_sub_activities WHERE entry_id = ANY(${ids}) ORDER BY id
   `;
   const byEntry: Record<number, unknown[]> = {};
-  for (const s of subs as Array<{ entry_id: number }>) {
+  for (const s of subs as unknown as Array<{ entry_id: number }>) {
     (byEntry[s.entry_id] ??= []).push(s);
   }
   return entries.map(e => ({ ...e, entry_sub_activities: byEntry[e.id as number] ?? [] }));
@@ -41,7 +41,7 @@ export async function GET(req: NextRequest) {
         if (defaults.length > 0) {
           const weekStart = getWeekStart(new Date(date + 'T12:00:00'));
           await sql.begin(async sql => {
-            for (const d of defaults as Array<{ activity_id: number; default_time: string; default_duration: number }>) {
+            for (const d of defaults as unknown as Array<{ activity_id: number; default_time: string; default_duration: number }>) {
               await sql`
                 INSERT INTO schedule_entries (activity_id, date, time_slot, duration_minutes)
                 VALUES (${d.activity_id}, ${date}, ${d.default_time}, ${d.default_duration})
