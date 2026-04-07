@@ -49,7 +49,6 @@ export default function ActivityCard({ entry, cardMinHeight, onUpdate, onRemove,
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
-    ...(cardMinHeight ? { minHeight: `${cardMinHeight}px` } : {}),
   };
 
   const handleComplete = async () => {
@@ -62,10 +61,9 @@ export default function ActivityCard({ entry, cardMinHeight, onUpdate, onRemove,
   };
 
   return (
+    <div ref={setNodeRef} style={style} id={`activity-card-${entry.id}`}>
     <div
-      ref={setNodeRef}
-      style={style}
-      id={`activity-card-${entry.id}`}
+      style={cardMinHeight ? { minHeight: `${cardMinHeight}px` } : undefined}
       className={cn(
         'flex items-start gap-2 p-3 rounded-lg border bg-white dark:bg-gray-800 shadow-sm group',
         isDragging && 'opacity-50 shadow-lg z-50',
@@ -157,6 +155,7 @@ export default function ActivityCard({ entry, cardMinHeight, onUpdate, onRemove,
           <Trash2 className="h-4 w-4 text-red-400" />
         </button>
       </div>
+    </div>
     </div>
   );
 }
