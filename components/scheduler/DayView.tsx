@@ -226,33 +226,89 @@ export default function DayView({ date }: DayViewProps) {
         <SortableContext items={entries.map(e => e.id)} strategy={verticalListSortingStrategy}>
           <div id="day-view-timeline">
             {segments.map(seg => {
+              if (seg.type === 'activity') {
+                // Use CSS grid so time labels show at each 15-min mark within the card
+                const rows = Array.from({ length: seg.spanSlots }, (_, i) => {
+                  const slotMin = DAY_START_MIN + (seg.slotIdx + i) * SLOT_INTERVAL_MIN;
+                  const h = Math.floor(slotMin / 60);
+                  const m = slotMin % 60;
+                  const isHour = m === 0;
+                  const isHalf = m === 30;
+                  const timeStr = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+                  return { i, isHour, isHalf, m, timeStr };
+                });
+
+                return (
+                  <div
+                    key={seg.slotIdx}
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: '64px 1fr',
+                      gridTemplateRows: `repeat(${seg.spanSlots}, minmax(${SLOT_HEIGHT_PX}px, auto))`,
+                    }}
+                  >
+                    {/* One time label per slot within the activity */}
+                    {rows.map(({ i, isHour, isHalf, m, timeStr }) => (
+                      <div
+                        key={i}
+                        style={{ gridRow: i + 1, gridColumn: 1 }}
+                        className="text-right pr-2 pt-1 select-none"
+                      >
+                        {isHour && (
+                          <span className="text-xs font-mono font-bold text-gray-600 dark:text-gray-400">
+                            {formatTime(timeStr)}
+                          </span>
+                        )}
+                        {isHalf && (
+                          <span className="text-[10px] font-mono text-gray-300 dark:text-gray-600">:30</span>
+                        )}
+                        {!isHour && !isHalf && (
+                          <span className="text-[10px] font-mono text-gray-200 dark:text-gray-700">
+                            :{String(m).padStart(2, '0')}
+                          </span>
+                        )}
+                      </div>
+                    ))}
+
+                    {/* Activity card spanning all rows */}
+                    <div
+                      style={{ gridRow: `1 / ${seg.spanSlots + 1}`, gridColumn: 2 }}
+                      className="border-l border-gray-200 dark:border-gray-600 pl-1 pb-0.5"
+                    >
+                      <ActivityCard
+                        entry={seg.entry}
+                        onUpdate={handleUpdate}
+                        onRemove={handleRemove}
+                        onEdit={setEditingEntry}
+                        onToggleSubActivity={handleToggleSubActivity}
+                      />
+                    </div>
+                  </div>
+                );
+              }
+
+              // Empty slot
               const slotMin = DAY_START_MIN + seg.slotIdx * SLOT_INTERVAL_MIN;
               const h = Math.floor(slotMin / 60);
               const m = slotMin % 60;
               const isHour = m === 0;
               const isHalf = m === 30;
               const timeStr = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
-              const minHeight = seg.type === 'activity'
-                ? seg.spanSlots * SLOT_HEIGHT_PX
-                : SLOT_HEIGHT_PX;
 
               return (
                 <div
                   key={seg.slotIdx}
                   className="flex gap-0"
-                  style={{ minHeight: `${minHeight}px` }}
+                  style={{ minHeight: `${SLOT_HEIGHT_PX}px` }}
                 >
-                  {/* Time label */}
                   <div className="w-16 flex-shrink-0 text-right pr-2 pt-1 select-none">
                     {isHour && (
-                      <span className="text-xs font-mono font-semibold text-gray-500">
+                      <span className="text-xs font-mono font-bold text-gray-600 dark:text-gray-400">
                         {formatTime(timeStr)}
                       </span>
                     )}
                     {isHalf && (
-                      <span className="text-[10px] font-mono text-gray-300 dark:text-gray-600">
-                        :30
-                      </span>
+                      <span className="text-[10px] font-mono text-gray-300 dark:text-gray-600">:30</span>
                     )}
                     {!isHour && !isHalf && (
                       <span className="text-[10px] font-mono text-gray-200 dark:text-gray-700">
@@ -260,8 +316,6 @@ export default function DayView({ date }: DayViewProps) {
                       </span>
                     )}
                   </div>
-
-                  {/* Slot content */}
                   <div
                     className={`flex-1 border-l pl-1 pb-0.5 ${
                       isHour
@@ -271,24 +325,14 @@ export default function DayView({ date }: DayViewProps) {
                         : 'border-gray-50 dark:border-gray-800'
                     }`}
                   >
-                    {seg.type === 'activity' ? (
-                      <ActivityCard
-                        entry={seg.entry}
-                        onUpdate={handleUpdate}
-                        onRemove={handleRemove}
-                        onEdit={setEditingEntry}
-                        onToggleSubActivity={handleToggleSubActivity}
-                      />
-                    ) : (
-                      <button
-                        id={`add-to-slot-${timeStr.replace(':', '-')}`}
-                        onClick={() => setAddingToSlot(timeStr)}
-                        className="w-full h-full min-h-[22px] border border-dashed border-transparent hover:border-orange-300 hover:bg-orange-50 dark:hover:bg-orange-950/20 rounded transition-colors flex items-center justify-center gap-1 text-xs text-transparent hover:text-orange-400"
-                        aria-label={`Add activity at ${formatTime(timeStr)}`}
-                      >
-                        <Plus className="h-3 w-3" />
-                      </button>
-                    )}
+                    <button
+                      id={`add-to-slot-${timeStr.replace(':', '-')}`}
+                      onClick={() => setAddingToSlot(timeStr)}
+                      className="w-full h-full min-h-[22px] border border-dashed border-transparent hover:border-orange-300 hover:bg-orange-50 dark:hover:bg-orange-950/20 rounded transition-colors flex items-center justify-center gap-1 text-xs text-transparent hover:text-orange-400"
+                      aria-label={`Add activity at ${formatTime(timeStr)}`}
+                    >
+                      <Plus className="h-3 w-3" />
+                    </button>
                   </div>
                 </div>
               );
