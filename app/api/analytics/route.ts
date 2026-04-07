@@ -42,6 +42,7 @@ export async function GET(req: NextRequest) {
       JOIN goals g ON gr.goal_id = g.id
       WHERE gr.date = ${date}
       GROUP BY gr.goal_id, g.name, g.color
+      ORDER BY g.name
     `;
 
     const subcatBreakdown = await sql`
@@ -51,7 +52,7 @@ export async function GET(req: NextRequest) {
       WHERE gr.date >= ${startDate} AND gr.date <= ${date}
       ${subcatGoalFilter}
       GROUP BY gr.subcategory_id, gs.label, gr.response_type, gr.goal_id
-      ORDER BY count DESC
+      ORDER BY gs.label, count DESC
     `;
 
     const thisWeekStart = format(subDays(parseISO(date), 6), 'yyyy-MM-dd');
