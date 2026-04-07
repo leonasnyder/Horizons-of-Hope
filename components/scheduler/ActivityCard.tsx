@@ -66,7 +66,7 @@ export default function ActivityCard({ entry, onUpdate, onRemove, onEdit, onTogg
       style={style}
       id={`activity-card-${entry.id}`}
       className={cn(
-        'flex items-start gap-2 p-3 rounded-lg border bg-white dark:bg-gray-800 shadow-sm group h-full',
+        'flex items-start gap-2 p-3 rounded-lg border bg-white dark:bg-gray-800 shadow-sm group',
         isDragging && 'opacity-50 shadow-lg z-50',
         entry.is_completed && 'opacity-60'
       )}

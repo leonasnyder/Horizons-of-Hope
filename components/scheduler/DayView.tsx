@@ -295,7 +295,7 @@ export default function DayView({ date }: DayViewProps) {
                     key={entry.id}
                     data-activity-card
                     className="absolute left-1 right-1 z-10"
-                    style={{ top: `${top}px`, height: `${height}px` }}
+                    style={{ top: `${top}px`, minHeight: `${height}px` }}
                     onClick={e => e.stopPropagation()}
                   >
                     <ActivityCard
