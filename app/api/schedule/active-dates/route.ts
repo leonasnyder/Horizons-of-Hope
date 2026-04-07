@@ -1,20 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDb } from '@/lib/db';
+import sql from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(req: NextRequest) {
   try {
-    const db = getDb();
     const { searchParams } = new URL(req.url);
-    const month = searchParams.get('month'); // YYYY-MM
+    const month = searchParams.get('month');
     if (!month) return NextResponse.json({ error: 'month required' }, { status: 400 });
-    const rows = db.prepare(`
+    const rows = await sql`
       SELECT DISTINCT date FROM schedule_entries
-      WHERE date LIKE ? AND removed = 0
+      WHERE date LIKE ${month + '%'} AND removed = 0
       ORDER BY date
-    `).all(`${month}%`) as Array<{ date: string }>;
-    return NextResponse.json(rows.map(r => r.date));
+    `;
+    return NextResponse.json(rows.map((r: { date: string }) => r.date));
   } catch (e) {
     return NextResponse.json({ error: String(e) }, { status: 500 });
   }
