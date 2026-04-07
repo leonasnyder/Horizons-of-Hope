@@ -152,11 +152,28 @@ export default function DayView({ date }: DayViewProps) {
     documentTitle: `Schedule-${date}`,
   });
 
-  const timeSlots = generateTimeSlots(7, 18, 30);
+  const SLOT_INTERVAL_MIN = 30;
+  const SLOT_HEIGHT_PX = 60; // visual height per 30-minute slot
+
+  const timeSlots = generateTimeSlots(7, 18, SLOT_INTERVAL_MIN);
   const entriesBySlot = entries.reduce<Record<string, ScheduleEntry[]>>((acc, e) => {
     (acc[e.time_slot] ??= []).push(e);
     return acc;
   }, {});
+
+  // Slots consumed by a multi-slot activity (should not show add button)
+  const consumedSlots = new Set<string>();
+  entries.forEach(entry => {
+    const [h, m] = entry.time_slot.split(':').map(Number);
+    let mins = h * 60 + m + SLOT_INTERVAL_MIN;
+    const endMins = h * 60 + m + entry.duration_minutes;
+    while (mins < endMins) {
+      const hh = Math.floor(mins / 60);
+      const mm = mins % 60;
+      consumedSlots.add(`${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`);
+      mins += SLOT_INTERVAL_MIN;
+    }
+  });
 
   if (loading) {
     return (
@@ -203,12 +220,16 @@ export default function DayView({ date }: DayViewProps) {
                         <ActivityCard
                           key={entry.id}
                           entry={entry}
+                          slotHeightPx={SLOT_HEIGHT_PX}
+                          slotIntervalMin={SLOT_INTERVAL_MIN}
                           onUpdate={handleUpdate}
                           onRemove={handleRemove}
                           onEdit={setEditingEntry}
                           onToggleSubActivity={handleToggleSubActivity}
                         />
                       ))
+                    ) : consumedSlots.has(slot) ? (
+                      <div className="h-10 border-l-2 border-orange-200 dark:border-orange-800 ml-1 opacity-40" />
                     ) : (
                       <button
                         id={`add-to-slot-${slot.replace(':', '-')}`}

@@ -35,16 +35,26 @@ interface ScheduleEntryForCard {
 
 interface ActivityCardProps {
   entry: ScheduleEntryForCard;
+  slotHeightPx?: number;
+  slotIntervalMin?: number;
   onUpdate: (id: number, data: Record<string, unknown>) => Promise<void>;
   onRemove: (id: number) => Promise<void>;
   onEdit: (entry: ScheduleEntryForCard) => void;
   onToggleSubActivity: (entryId: number, entrySubActivityId: number, completed: number) => Promise<void>;
 }
 
-export default function ActivityCard({ entry, onUpdate, onRemove, onEdit, onToggleSubActivity }: ActivityCardProps) {
+export default function ActivityCard({ entry, slotHeightPx = 60, slotIntervalMin = 30, onUpdate, onRemove, onEdit, onToggleSubActivity }: ActivityCardProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: entry.id });
-  const style = { transform: CSS.Transform.toString(transform), transition };
+
+  const slots = Math.max(1, Math.ceil(entry.duration_minutes / slotIntervalMin));
+  const cardMinHeight = slots * slotHeightPx - 8; // subtract a little for gap between cards
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    minHeight: `${cardMinHeight}px`,
+  };
 
   const handleComplete = async () => {
     await onUpdate(entry.id, { is_completed: entry.is_completed ? 0 : 1 });
@@ -61,7 +71,7 @@ export default function ActivityCard({ entry, onUpdate, onRemove, onEdit, onTogg
       style={style}
       id={`activity-card-${entry.id}`}
       className={cn(
-        'flex items-center gap-2 p-3 rounded-lg border bg-white dark:bg-gray-800 shadow-sm group',
+        'flex items-start gap-2 p-3 rounded-lg border bg-white dark:bg-gray-800 shadow-sm group',
         isDragging && 'opacity-50 shadow-lg z-50',
         entry.is_completed && 'opacity-60'
       )}
