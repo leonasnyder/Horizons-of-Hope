@@ -264,6 +264,7 @@ export default function DayView({ date }: DayViewProps) {
 
                     {/* Activity card filling the full height */}
                     <div className="flex-1 border-l border-gray-200 dark:border-gray-600 pl-1 pb-0.5">
+                      <div className="text-[10px] bg-yellow-200 px-1 rounded mb-1">DEBUG: {seg.spanSlots} slots / {seg.entry.duration_minutes} min</div>
                       <ActivityCard
                         entry={seg.entry}
                         cardMinHeight={seg.spanSlots * SLOT_HEIGHT_PX - 4}
