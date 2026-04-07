@@ -16,7 +16,8 @@ export async function POST(req: NextRequest) {
   try {
     const { name, color } = await req.json();
     if (!name?.trim()) return NextResponse.json({ error: 'name is required' }, { status: 400 });
-    const [{ m }] = await sql`SELECT COALESCE(MAX(sort_order), -1) as m FROM categories`;
+    const result = await sql`SELECT COALESCE(MAX(sort_order), -1) as m FROM categories`;
+    const m = result[0].m;
     const [category] = await sql`
       INSERT INTO categories (name, color, sort_order)
       VALUES (${name.trim()}, ${color ?? '#6B7280'}, ${Number(m) + 1})

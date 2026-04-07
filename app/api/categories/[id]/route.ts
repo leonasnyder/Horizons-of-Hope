@@ -23,6 +23,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     });
 
     const [updated] = await sql`SELECT * FROM categories WHERE id = ${id}`;
+    if (!updated) return NextResponse.json({ error: 'Not found' }, { status: 404 });
     return NextResponse.json(updated);
   } catch (e) {
     if ((e as { code?: string }).code === '23505') {
