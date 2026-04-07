@@ -5,8 +5,8 @@ export const dynamic = 'force-dynamic';
 
 export async function GET() {
   try {
-    const goals = await sql`SELECT * FROM goals ORDER BY sort_order, name`;
-    const subcats = await sql`SELECT * FROM goal_subcategories WHERE is_active = 1 ORDER BY goal_id, sort_order`;
+    const goals = await sql`SELECT * FROM goals ORDER BY name`;
+    const subcats = await sql`SELECT * FROM goal_subcategories WHERE is_active = 1 ORDER BY goal_id, label`;
     const result = (goals as unknown as Array<{ id: number } & Record<string, unknown>>).map(g => ({
       ...g,
       subcategories: (subcats as unknown as Array<{ goal_id: number } & Record<string, unknown>>).filter(s => s.goal_id === g.id),

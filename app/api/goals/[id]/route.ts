@@ -8,7 +8,7 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
     const id = Number(params.id);
     const rows = await sql`SELECT * FROM goals WHERE id = ${id}`;
     if (rows.length === 0) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-    const subcats = await sql`SELECT * FROM goal_subcategories WHERE goal_id = ${id} ORDER BY sort_order`;
+    const subcats = await sql`SELECT * FROM goal_subcategories WHERE goal_id = ${id} ORDER BY label`;
     return NextResponse.json({ ...rows[0], subcategories: subcats });
   } catch (e) {
     return NextResponse.json({ error: String(e) }, { status: 500 });
@@ -50,7 +50,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 
     const [goal] = await sql`SELECT * FROM goals WHERE id = ${id}`;
     if (!goal) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-    const subcats = await sql`SELECT * FROM goal_subcategories WHERE goal_id = ${id} ORDER BY sort_order`;
+    const subcats = await sql`SELECT * FROM goal_subcategories WHERE goal_id = ${id} ORDER BY label`;
     return NextResponse.json({ ...goal, subcategories: subcats });
   } catch (e) {
     return NextResponse.json({ error: String(e) }, { status: 500 });
