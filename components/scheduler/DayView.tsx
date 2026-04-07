@@ -238,7 +238,7 @@ export default function DayView({ date }: DayViewProps) {
                 return (
                   <div
                     key={seg.slotIdx}
-                    className="flex"
+                    className="flex border-4 border-red-500"
                     style={{ minHeight: `${seg.spanSlots * SLOT_HEIGHT_PX}px` }}
                   >
                     {/* Time labels stacked vertically, one per 15-min slot */}
