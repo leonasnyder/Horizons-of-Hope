@@ -216,7 +216,7 @@ export default function DayView({ date, onReset }: DayViewProps) {
       si += 1;
     }
   }
-  const overlappedEntries = [...entryByStartSlot.values()].filter(e => {
+  const overlappedEntries = Array.from(entryByStartSlot.values()).filter(e => {
     const slot = Math.round((timeToMinutes(e.time_slot) - DAY_START_MIN) / SLOT_INTERVAL_MIN);
     return coveredSlots.has(slot);
   });
