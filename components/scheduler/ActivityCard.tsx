@@ -1,5 +1,4 @@
 'use client';
-import { useState } from 'react';
 import { Check, GripVertical, Trash2, Edit2 } from 'lucide-react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
