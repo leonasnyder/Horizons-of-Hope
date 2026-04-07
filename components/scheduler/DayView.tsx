@@ -56,8 +56,6 @@ const DAY_START_MIN = DAY_START_HOUR * 60;
 const DAY_END_MIN = DAY_END_HOUR * 60;
 const TOTAL_SLOTS = (DAY_END_MIN - DAY_START_MIN) / SLOT_INTERVAL_MIN;
 
-// Build slot index array [0 .. TOTAL_SLOTS-1]
-const SLOT_INDICES = Array.from({ length: TOTAL_SLOTS }, (_, i) => i);
 
 export default function DayView({ date }: DayViewProps) {
   const [entries, setEntries] = useState<ScheduleEntry[]>([]);
@@ -171,20 +169,31 @@ export default function DayView({ date }: DayViewProps) {
     documentTitle: `Schedule-${date}`,
   });
 
-  // Build a map from slot index -> entry (first entry that starts in or covers this slot)
-  // slot index 0 = DAY_START_MIN
-  const entryByStartSlot = new Map<number, ScheduleEntry>();
-  const coveredSlots = new Set<number>();
+  // Build timeline segments: one per activity (spanning its slots) or one per empty slot
+  type Segment =
+    | { type: 'empty'; slotIdx: number }
+    | { type: 'activity'; slotIdx: number; spanSlots: number; entry: ScheduleEntry };
 
+  const entryByStartSlot = new Map<number, ScheduleEntry>();
   for (const entry of entries) {
     const startMin = timeToMinutes(entry.time_slot);
     const startSlot = Math.round((startMin - DAY_START_MIN) / SLOT_INTERVAL_MIN);
-    const spanSlots = Math.max(1, Math.round(entry.duration_minutes / SLOT_INTERVAL_MIN));
+    if (startSlot >= 0 && startSlot < TOTAL_SLOTS) {
+      entryByStartSlot.set(startSlot, entry);
+    }
+  }
 
-    if (startSlot < 0 || startSlot >= TOTAL_SLOTS) continue;
-    entryByStartSlot.set(startSlot, entry);
-    for (let i = startSlot; i < Math.min(startSlot + spanSlots, TOTAL_SLOTS); i++) {
-      coveredSlots.add(i);
+  const segments: Segment[] = [];
+  let si = 0;
+  while (si < TOTAL_SLOTS) {
+    const entry = entryByStartSlot.get(si);
+    if (entry) {
+      const spanSlots = Math.max(1, Math.round(entry.duration_minutes / SLOT_INTERVAL_MIN));
+      segments.push({ type: 'activity', slotIdx: si, spanSlots, entry });
+      si += spanSlots;
+    } else {
+      segments.push({ type: 'empty', slotIdx: si });
+      si += 1;
     }
   }
 
@@ -216,22 +225,22 @@ export default function DayView({ date }: DayViewProps) {
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <SortableContext items={entries.map(e => e.id)} strategy={verticalListSortingStrategy}>
           <div id="day-view-timeline">
-            {SLOT_INDICES.map(slotIdx => {
-              const slotMin = DAY_START_MIN + slotIdx * SLOT_INTERVAL_MIN;
+            {segments.map(seg => {
+              const slotMin = DAY_START_MIN + seg.slotIdx * SLOT_INTERVAL_MIN;
               const h = Math.floor(slotMin / 60);
               const m = slotMin % 60;
               const isHour = m === 0;
               const isHalf = m === 30;
               const timeStr = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
-
-              const entry = entryByStartSlot.get(slotIdx);
-              const isCovered = coveredSlots.has(slotIdx) && !entry;
+              const minHeight = seg.type === 'activity'
+                ? seg.spanSlots * SLOT_HEIGHT_PX
+                : SLOT_HEIGHT_PX;
 
               return (
                 <div
-                  key={slotIdx}
+                  key={seg.slotIdx}
                   className="flex gap-0"
-                  style={{ minHeight: `${SLOT_HEIGHT_PX}px` }}
+                  style={{ minHeight: `${minHeight}px` }}
                 >
                   {/* Time label */}
                   <div className="w-16 flex-shrink-0 text-right pr-2 pt-1 select-none">
@@ -262,17 +271,14 @@ export default function DayView({ date }: DayViewProps) {
                         : 'border-gray-50 dark:border-gray-800'
                     }`}
                   >
-                    {entry ? (
+                    {seg.type === 'activity' ? (
                       <ActivityCard
-                        entry={entry}
+                        entry={seg.entry}
                         onUpdate={handleUpdate}
                         onRemove={handleRemove}
                         onEdit={setEditingEntry}
                         onToggleSubActivity={handleToggleSubActivity}
                       />
-                    ) : isCovered ? (
-                      // Slot occupied by a multi-slot activity above — show nothing (card above expands)
-                      null
                     ) : (
                       <button
                         id={`add-to-slot-${timeStr.replace(':', '-')}`}
