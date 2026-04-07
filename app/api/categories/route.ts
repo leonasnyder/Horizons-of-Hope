@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic';
 
 export async function GET() {
   try {
-    const categories = await sql`SELECT * FROM categories ORDER BY sort_order, name`;
+    const categories = await sql`SELECT * FROM categories ORDER BY name`;
     return NextResponse.json(categories);
   } catch (e) {
     return NextResponse.json({ error: String(e) }, { status: 500 });

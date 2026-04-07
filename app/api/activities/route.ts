@@ -8,8 +8,8 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const includeArchived = searchParams.get('includeArchived') === 'true';
     const activities = includeArchived
-      ? await sql`SELECT * FROM activities ORDER BY category, name`
-      : await sql`SELECT * FROM activities WHERE is_archived = 0 ORDER BY category, name`;
+      ? await sql`SELECT * FROM activities ORDER BY name`
+      : await sql`SELECT * FROM activities WHERE is_archived = 0 ORDER BY name`;
     return NextResponse.json(activities);
   } catch (e) {
     return NextResponse.json({ error: String(e) }, { status: 500 });

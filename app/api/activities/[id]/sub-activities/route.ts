@@ -8,7 +8,7 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
     const subs = await sql`
       SELECT * FROM activity_sub_activities
       WHERE activity_id = ${Number(params.id)} AND is_active = 1
-      ORDER BY sort_order, id
+      ORDER BY label
     `;
     return NextResponse.json(subs);
   } catch (e) {
