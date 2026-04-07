@@ -56,7 +56,12 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 
 export async function DELETE(_req: NextRequest, { params }: { params: { id: string } }) {
   try {
-    await sql`UPDATE activities SET is_archived = 1 WHERE id = ${Number(params.id)}`;
+    const id = Number(params.id);
+    await sql.begin(async sql => {
+      await sql`DELETE FROM activity_defaults WHERE activity_id = ${id}`;
+      await sql`DELETE FROM activity_sub_activities WHERE activity_id = ${id}`;
+      await sql`DELETE FROM activities WHERE id = ${id}`;
+    });
     return NextResponse.json({ success: true });
   } catch (e) {
     return NextResponse.json({ error: String(e) }, { status: 500 });

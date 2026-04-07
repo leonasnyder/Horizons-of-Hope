@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { Plus, Archive, Search, RotateCcw, Tags, Edit2 } from 'lucide-react';
+import { Plus, Archive, Search, RotateCcw, Tags, Edit2, Trash2 } from 'lucide-react';
 import CategoryManager from './CategoryManager';
 import ActivityEditPanel from './ActivityEditPanel';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -82,9 +82,20 @@ export default function ActivityManager({ open, onClose }: ActivityManagerProps)
 
   const archiveActivity = async (a: Activity) => {
     if (!window.confirm(`Archive "${a.name}"? It will be hidden from new schedules.`)) return;
-    await fetch(`/api/activities/${a.id}`, { method: 'DELETE' });
+    await fetch(`/api/activities/${a.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ is_archived: 1 }),
+    });
     fetchActivities();
     toast.success(`${a.name} archived`);
+  };
+
+  const deleteActivity = async (a: Activity) => {
+    if (!window.confirm(`Permanently delete "${a.name}"? This cannot be undone.`)) return;
+    await fetch(`/api/activities/${a.id}`, { method: 'DELETE' });
+    fetchActivities();
+    toast.success(`${a.name} deleted`);
   };
 
   const unarchiveActivity = async (a: Activity) => {
@@ -289,7 +300,11 @@ export default function ActivityManager({ open, onClose }: ActivityManagerProps)
         )}
 
         <div className="overflow-y-auto flex-1 space-y-4 pr-1">
-          {Object.entries(grouped).map(([cat, acts]) => (
+          {Object.entries(grouped).sort(([a], [b]) => {
+            if (a.includes('Archived')) return 1;
+            if (b.includes('Archived')) return -1;
+            return a.localeCompare(b);
+          }).map(([cat, acts]) => (
             <div key={cat} id={`activity-group-${cat.replace(/[^a-z0-9]/gi, '-').toLowerCase()}`}>
               <h3 className="text-xs font-bold uppercase text-gray-400 mb-2 sticky top-0 bg-background py-1">{cat}</h3>
               <div className="space-y-1.5">
@@ -327,15 +342,26 @@ export default function ActivityManager({ open, onClose }: ActivityManagerProps)
                         </Button>
                       )}
                       {a.is_archived ? (
-                        <Button
-                          id={`activity-restore-${a.id}`}
-                          variant="outline"
-                          size="sm"
-                          onClick={() => unarchiveActivity(a)}
-                          className="flex-shrink-0"
-                        >
-                          <RotateCcw className="h-3 w-3 mr-1" /> Restore
-                        </Button>
+                        <div className="flex items-center gap-1 flex-shrink-0">
+                          <Button
+                            id={`activity-restore-${a.id}`}
+                            variant="outline"
+                            size="sm"
+                            onClick={() => unarchiveActivity(a)}
+                          >
+                            <RotateCcw className="h-3 w-3 mr-1" /> Restore
+                          </Button>
+                          <Button
+                            id={`activity-delete-${a.id}`}
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => deleteActivity(a)}
+                            className="text-gray-400 hover:text-red-500"
+                            aria-label={`Delete ${a.name}`}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
                       ) : (
                         <Button
                           id={`activity-archive-${a.id}`}
