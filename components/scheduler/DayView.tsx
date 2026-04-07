@@ -38,7 +38,7 @@ interface DayViewProps {
 const DAY_START_HOUR = 7;
 const DAY_END_HOUR = 20;
 const SLOT_INTERVAL_MIN = 15;
-const SLOT_HEIGHT_PX = 24; // px per 15-minute slot
+const SLOT_HEIGHT_PX = 24; // minimum px per 15-minute slot row
 
 function timeToMinutes(timeStr: string): number {
   const [h, m] = timeStr.split(':').map(Number);
@@ -46,19 +46,18 @@ function timeToMinutes(timeStr: string): number {
 }
 
 function minutesToSlot(totalMinutes: number): string {
-  const h = Math.floor(totalMinutes / 60);
-  const m = totalMinutes % 60;
-  // Snap to nearest 15-min interval
-  const snappedM = Math.round(m / 15) * 15;
-  const snappedH = h + Math.floor(snappedM / 60);
-  const finalM = snappedM % 60;
-  return `${String(snappedH).padStart(2, '0')}:${String(finalM).padStart(2, '0')}`;
+  const snapped = Math.round(totalMinutes / SLOT_INTERVAL_MIN) * SLOT_INTERVAL_MIN;
+  const h = Math.floor(snapped / 60);
+  const m = snapped % 60;
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 }
 
 const DAY_START_MIN = DAY_START_HOUR * 60;
 const DAY_END_MIN = DAY_END_HOUR * 60;
 const TOTAL_SLOTS = (DAY_END_MIN - DAY_START_MIN) / SLOT_INTERVAL_MIN;
-const TIMELINE_HEIGHT = TOTAL_SLOTS * SLOT_HEIGHT_PX;
+
+// Build slot index array [0 .. TOTAL_SLOTS-1]
+const SLOT_INDICES = Array.from({ length: TOTAL_SLOTS }, (_, i) => i);
 
 export default function DayView({ date }: DayViewProps) {
   const [entries, setEntries] = useState<ScheduleEntry[]>([]);
@@ -66,7 +65,6 @@ export default function DayView({ date }: DayViewProps) {
   const [editingEntry, setEditingEntry] = useState<ScheduleEntry | null>(null);
   const [addingToSlot, setAddingToSlot] = useState<string | null>(null);
   const printRef = useRef<HTMLDivElement>(null);
-  const timelineRef = useRef<HTMLDivElement>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -146,9 +144,7 @@ export default function DayView({ date }: DayViewProps) {
 
     const draggedEntry = entries[oldIndex];
     const targetEntry = entries[newIndex];
-
-    const newEntries = arrayMove(entries, oldIndex, newIndex);
-    setEntries(newEntries);
+    setEntries(arrayMove(entries, oldIndex, newIndex));
 
     try {
       await Promise.all([
@@ -170,43 +166,26 @@ export default function DayView({ date }: DayViewProps) {
     }
   }, [entries, fetchEntries]);
 
-  const handleTimelineClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    if (!timelineRef.current) return;
-    // Don't open modal if clicking on an existing activity card
-    if ((e.target as HTMLElement).closest('[data-activity-card]')) return;
-    const rect = timelineRef.current.getBoundingClientRect();
-    const y = e.clientY - rect.top + timelineRef.current.scrollTop;
-    const clickedMin = Math.floor(y / SLOT_HEIGHT_PX) * SLOT_INTERVAL_MIN + DAY_START_MIN;
-    const snapped = minutesToSlot(Math.max(DAY_START_MIN, Math.min(DAY_END_MIN - SLOT_INTERVAL_MIN, clickedMin)));
-    setAddingToSlot(snapped);
-  }, []);
-
   const handlePrint = useReactToPrint({
     content: () => printRef.current,
     documentTitle: `Schedule-${date}`,
   });
 
-  // Generate time labels at every 15-minute mark
-  const hourMarks: Array<{ min: number; label: string; isHour: boolean }> = [];
-  for (let min = DAY_START_MIN; min <= DAY_END_MIN; min += SLOT_INTERVAL_MIN) {
-    const h = Math.floor(min / 60);
-    const m = min % 60;
-    const isHour = m === 0;
-    hourMarks.push({
-      min,
-      label: isHour
-        ? formatTime(`${String(h).padStart(2, '0')}:00`)
-        : `${String(m).padStart(2, '0')}`,
-      isHour,
-    });
-  }
+  // Build a map from slot index -> entry (first entry that starts in or covers this slot)
+  // slot index 0 = DAY_START_MIN
+  const entryByStartSlot = new Map<number, ScheduleEntry>();
+  const coveredSlots = new Set<number>();
 
-  // Generate all 15-min grid lines
-  const gridLines: Array<{ min: number; isHour: boolean; isHalf: boolean }> = [];
-  for (let min = DAY_START_MIN; min < DAY_END_MIN; min += SLOT_INTERVAL_MIN) {
-    const isHour = min % 60 === 0;
-    const isHalf = min % 30 === 0 && !isHour;
-    gridLines.push({ min, isHour, isHalf });
+  for (const entry of entries) {
+    const startMin = timeToMinutes(entry.time_slot);
+    const startSlot = Math.round((startMin - DAY_START_MIN) / SLOT_INTERVAL_MIN);
+    const spanSlots = Math.max(1, Math.round(entry.duration_minutes / SLOT_INTERVAL_MIN));
+
+    if (startSlot < 0 || startSlot >= TOTAL_SLOTS) continue;
+    entryByStartSlot.set(startSlot, entry);
+    for (let i = startSlot; i < Math.min(startSlot + spanSlots, TOTAL_SLOTS); i++) {
+      coveredSlots.add(i);
+    }
   }
 
   if (loading) {
@@ -236,79 +215,78 @@ export default function DayView({ date }: DayViewProps) {
 
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <SortableContext items={entries.map(e => e.id)} strategy={verticalListSortingStrategy}>
-          {/* Timeline container */}
-          <div
-            id="day-view-timeline"
-            ref={timelineRef}
-            className="relative flex gap-0 select-none"
-            style={{ height: `${TIMELINE_HEIGHT}px` }}
-            onClick={handleTimelineClick}
-          >
-            {/* Time labels column */}
-            <div className="w-16 flex-shrink-0 relative">
-              {hourMarks.map(({ min, label, isHour }) => {
-                const top = (min - DAY_START_MIN) / SLOT_INTERVAL_MIN * SLOT_HEIGHT_PX;
-                return (
-                  <div
-                    key={min}
-                    className={`absolute right-2 font-mono -translate-y-2 ${
-                      isHour
-                        ? 'text-xs text-gray-500 font-semibold'
-                        : 'text-[10px] text-gray-300 dark:text-gray-600'
-                    }`}
-                    style={{ top }}
-                  >
-                    {label}
-                  </div>
-                );
-              })}
-            </div>
+          <div id="day-view-timeline">
+            {SLOT_INDICES.map(slotIdx => {
+              const slotMin = DAY_START_MIN + slotIdx * SLOT_INTERVAL_MIN;
+              const h = Math.floor(slotMin / 60);
+              const m = slotMin % 60;
+              const isHour = m === 0;
+              const isHalf = m === 30;
+              const timeStr = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 
-            {/* Grid + cards area */}
-            <div className="flex-1 relative border-l border-gray-200 dark:border-gray-700">
-              {/* Grid lines */}
-              {gridLines.map(({ min, isHour, isHalf }) => {
-                const top = (min - DAY_START_MIN) / SLOT_INTERVAL_MIN * SLOT_HEIGHT_PX;
-                return (
+              const entry = entryByStartSlot.get(slotIdx);
+              const isCovered = coveredSlots.has(slotIdx) && !entry;
+
+              return (
+                <div
+                  key={slotIdx}
+                  className="flex gap-0"
+                  style={{ minHeight: `${SLOT_HEIGHT_PX}px` }}
+                >
+                  {/* Time label */}
+                  <div className="w-16 flex-shrink-0 text-right pr-2 pt-1 select-none">
+                    {isHour && (
+                      <span className="text-xs font-mono font-semibold text-gray-500">
+                        {formatTime(timeStr)}
+                      </span>
+                    )}
+                    {isHalf && (
+                      <span className="text-[10px] font-mono text-gray-300 dark:text-gray-600">
+                        :30
+                      </span>
+                    )}
+                    {!isHour && !isHalf && (
+                      <span className="text-[10px] font-mono text-gray-200 dark:text-gray-700">
+                        :{String(m).padStart(2, '0')}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Slot content */}
                   <div
-                    key={min}
-                    className={`absolute left-0 right-0 pointer-events-none ${
+                    className={`flex-1 border-l pl-1 pb-0.5 ${
                       isHour
-                        ? 'border-t border-gray-200 dark:border-gray-600'
+                        ? 'border-gray-200 dark:border-gray-600'
                         : isHalf
-                        ? 'border-t border-gray-100 dark:border-gray-700 border-dashed'
-                        : 'border-t border-gray-50 dark:border-gray-800'
+                        ? 'border-gray-100 dark:border-gray-700'
+                        : 'border-gray-50 dark:border-gray-800'
                     }`}
-                    style={{ top }}
-                  />
-                );
-              })}
-
-              {/* Activity cards — absolutely positioned */}
-              {entries.map(entry => {
-                const startMin = timeToMinutes(entry.time_slot);
-                const top = (startMin - DAY_START_MIN) / SLOT_INTERVAL_MIN * SLOT_HEIGHT_PX;
-                const height = Math.max(56, (entry.duration_minutes / SLOT_INTERVAL_MIN) * SLOT_HEIGHT_PX) - 4;
-
-                return (
-                  <div
-                    key={entry.id}
-                    data-activity-card
-                    className="absolute left-1 right-1 z-10"
-                    style={{ top: `${top}px`, minHeight: `${height}px` }}
-                    onClick={e => e.stopPropagation()}
                   >
-                    <ActivityCard
-                      entry={entry}
-                      onUpdate={handleUpdate}
-                      onRemove={handleRemove}
-                      onEdit={setEditingEntry}
-                      onToggleSubActivity={handleToggleSubActivity}
-                    />
+                    {entry ? (
+                      <ActivityCard
+                        entry={entry}
+                        onUpdate={handleUpdate}
+                        onRemove={handleRemove}
+                        onEdit={setEditingEntry}
+                        onToggleSubActivity={handleToggleSubActivity}
+                      />
+                    ) : isCovered ? (
+                      // Slot occupied by a multi-slot activity above — show nothing (card above expands)
+                      null
+                    ) : (
+                      <button
+                        id={`add-to-slot-${timeStr.replace(':', '-')}`}
+                        onClick={() => setAddingToSlot(timeStr)}
+                        className="w-full h-full min-h-[22px] border border-dashed border-transparent hover:border-orange-300 hover:bg-orange-50 dark:hover:bg-orange-950/20 rounded transition-colors flex items-center justify-center gap-1 text-xs text-transparent hover:text-orange-400"
+                        aria-label={`Add activity at ${formatTime(timeStr)}`}
+                      >
+                        <Plus className="h-3 w-3" />
+                      </button>
+                    )}
                   </div>
-                );
-              })}
-            </div>
+                </div>
+              );
+            })}
           </div>
         </SortableContext>
       </DndContext>
