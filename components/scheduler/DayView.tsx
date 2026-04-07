@@ -235,16 +235,22 @@ export default function DayView({ date }: DayViewProps) {
                   return { i, isHour: m === 0, isHalf: m === 30, m, timeStr };
                 });
 
+                const slotHeight = seg.spanSlots * SLOT_HEIGHT_PX;
+
                 return (
                   <div
                     key={seg.slotIdx}
-                    className="flex border-4 border-red-500"
-                    style={{ minHeight: `${seg.spanSlots * SLOT_HEIGHT_PX}px` }}
+                    className="flex"
+                    style={{ height: `${slotHeight}px`, overflow: 'visible' }}
                   >
-                    {/* Time labels stacked vertically, one per 15-min slot */}
-                    <div className="w-16 flex-shrink-0 flex flex-col select-none">
+                    {/* Time labels at exact pixel positions */}
+                    <div className="w-16 flex-shrink-0 relative select-none" style={{ height: `${slotHeight}px` }}>
                       {slotLabels.map(({ i, isHour, isHalf, m, timeStr }) => (
-                        <div key={i} className="flex-1 text-right pr-2 pt-1">
+                        <div
+                          key={i}
+                          className="absolute right-2"
+                          style={{ top: `${i * SLOT_HEIGHT_PX + 4}px` }}
+                        >
                           {isHour && (
                             <span className="text-xs font-mono font-bold text-gray-600 dark:text-gray-400">
                               {formatTime(timeStr)}
@@ -262,12 +268,11 @@ export default function DayView({ date }: DayViewProps) {
                       ))}
                     </div>
 
-                    {/* Activity card filling the full height */}
+                    {/* Activity card — minHeight fills the slot, grows if content is taller */}
                     <div className="flex-1 border-l border-gray-200 dark:border-gray-600 pl-1 pb-0.5">
-                      <div className="text-[10px] bg-yellow-200 px-1 rounded mb-1">DEBUG: {seg.spanSlots} slots / {seg.entry.duration_minutes} min</div>
                       <ActivityCard
                         entry={seg.entry}
-                        cardMinHeight={seg.spanSlots * SLOT_HEIGHT_PX - 4}
+                        cardMinHeight={slotHeight}
                         onUpdate={handleUpdate}
                         onRemove={handleRemove}
                         onEdit={setEditingEntry}
