@@ -48,7 +48,6 @@ export default function ActivityCard({ entry, onUpdate, onRemove, onEdit, onTogg
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
-    height: '100%',
   };
 
   const handleComplete = async () => {
