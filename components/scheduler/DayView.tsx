@@ -167,7 +167,8 @@ export default function DayView({ date }: DayViewProps) {
   const handleResetToDefaults = useCallback(async () => {
     if (!window.confirm('Reset this day to default activities? All current entries for this day will be removed.')) return;
     try {
-      await fetch(`/api/schedule?date=${date}`, { method: 'DELETE' });
+      const res = await fetch(`/api/schedule?date=${date}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error();
       await fetchEntries();
       toast.success('Day reset to defaults');
     } catch {
