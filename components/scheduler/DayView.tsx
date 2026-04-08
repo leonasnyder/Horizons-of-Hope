@@ -2,9 +2,9 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   DndContext, DragEndEvent, PointerSensor, TouchSensor,
-  useSensor, useSensors, closestCenter
+  useSensor, useSensors, closestCenter, useDroppable
 } from '@dnd-kit/core';
-import { SortableContext, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable';
+import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { Plus, Printer, Loader2, RefreshCw, AlertTriangle } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { toast } from 'sonner';
@@ -57,6 +57,15 @@ const DAY_START_MIN = DAY_START_HOUR * 60;
 const DAY_END_MIN = DAY_END_HOUR * 60;
 const TOTAL_SLOTS = (DAY_END_MIN - DAY_START_MIN) / SLOT_INTERVAL_MIN;
 
+
+function DroppableSlot({ id, children }: { id: string; children: React.ReactNode }) {
+  const { setNodeRef, isOver } = useDroppable({ id });
+  return (
+    <div ref={setNodeRef} className={`w-full h-full ${isOver ? 'bg-red-50 dark:bg-red-950/20 rounded' : ''}`}>
+      {children}
+    </div>
+  );
+}
 
 export default function DayView({ date, onReset }: DayViewProps) {
   const [entries, setEntries] = useState<ScheduleEntry[]>([]);
@@ -187,33 +196,24 @@ export default function DayView({ date, onReset }: DayViewProps) {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
 
-    const oldIndex = entries.findIndex(e => e.id === active.id);
-    const newIndex = entries.findIndex(e => e.id === over.id);
-    if (oldIndex === -1 || newIndex === -1) return;
+    const draggedEntry = entries.find(e => e.id === active.id);
+    if (!draggedEntry) return;
 
-    const draggedEntry = entries[oldIndex];
-    const targetEntry = entries[newIndex];
-    setEntries(arrayMove(entries, oldIndex, newIndex));
+    let targetTimeSlot: string;
 
-    try {
-      await Promise.all([
-        fetch(`/api/schedule/${draggedEntry.id}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ time_slot: targetEntry.time_slot }),
-        }),
-        fetch(`/api/schedule/${targetEntry.id}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ time_slot: draggedEntry.time_slot }),
-        }),
-      ]);
-      await fetchEntries();
-    } catch {
-      toast.error('Failed to reorder');
-      await fetchEntries();
+    if (typeof over.id === 'string' && over.id.startsWith('slot-')) {
+      // Dropped on an empty time slot
+      targetTimeSlot = over.id.slice(5);
+    } else {
+      // Dropped on another activity — move to its time slot
+      const targetEntry = entries.find(e => e.id === over.id);
+      if (!targetEntry) return;
+      targetTimeSlot = targetEntry.time_slot;
     }
-  }, [entries, fetchEntries]);
+
+    if (targetTimeSlot === draggedEntry.time_slot) return;
+    await handleUpdateWithCascade(draggedEntry.id, { time_slot: targetTimeSlot });
+  }, [entries, handleUpdateWithCascade]);
 
   const handleResetToDefaults = useCallback(async () => {
     if (!window.confirm('Reset this day to default activities? All current entries for this day will be removed.')) return;
@@ -417,14 +417,16 @@ export default function DayView({ date, onReset }: DayViewProps) {
                         : 'border-gray-50 dark:border-gray-800'
                     }`}
                   >
-                    <button
-                      id={`add-to-slot-${timeStr.replace(':', '-')}`}
-                      onClick={() => setAddingToSlot(timeStr)}
-                      className="w-full h-full min-h-[22px] border border-dashed border-transparent hover:border-red-400 hover:bg-red-50 dark:hover:bg-red-950/20 rounded transition-colors flex items-center justify-center gap-1 text-xs text-transparent hover:text-red-500"
-                      aria-label={`Add activity at ${formatTime(timeStr)}`}
-                    >
-                      <Plus className="h-3 w-3" />
-                    </button>
+                    <DroppableSlot id={`slot-${timeStr}`}>
+                      <button
+                        id={`add-to-slot-${timeStr.replace(':', '-')}`}
+                        onClick={() => setAddingToSlot(timeStr)}
+                        className="w-full h-full min-h-[22px] border border-dashed border-transparent hover:border-red-400 hover:bg-red-50 dark:hover:bg-red-950/20 rounded transition-colors flex items-center justify-center gap-1 text-xs text-transparent hover:text-red-500"
+                        aria-label={`Add activity at ${formatTime(timeStr)}`}
+                      >
+                        <Plus className="h-3 w-3" />
+                      </button>
+                    </DroppableSlot>
                   </div>
                 </div>
               );
