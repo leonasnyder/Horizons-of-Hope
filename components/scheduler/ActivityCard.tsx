@@ -64,63 +64,85 @@ export default function ActivityCard({ entry, cardMinHeight, onUpdate, onRemove,
     <div
       style={cardMinHeight ? { minHeight: `${cardMinHeight}px` } : undefined}
       className={cn(
-        'flex items-start gap-2 p-3 rounded-lg border bg-white dark:bg-gray-800 shadow-sm group',
+        'flex flex-col gap-1 p-3 rounded-lg border bg-white dark:bg-gray-800 shadow-sm group',
         isDragging && 'opacity-50 shadow-lg z-50',
         entry.is_completed && 'opacity-60'
       )}
     >
-      <button
-        {...listeners}
-        {...attributes}
-        className="cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-500 touch-none flex items-center justify-center min-w-[32px] min-h-[44px]"
-        aria-label="Drag to reorder"
-      >
-        <GripVertical className="h-4 w-4" />
-      </button>
+      {/* Top row: drag handle, complete button, name/time, edit/delete */}
+      <div className="flex items-start gap-2">
+        <button
+          {...listeners}
+          {...attributes}
+          className="cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-500 touch-none flex items-center justify-center min-w-[32px] min-h-[44px]"
+          aria-label="Drag to reorder"
+        >
+          <GripVertical className="h-4 w-4" />
+        </button>
 
-      <button
-        id={`activity-card-complete-${entry.id}`}
-        onClick={handleComplete}
-        className={cn(
-          'w-11 h-11 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors',
-          entry.is_completed
-            ? 'bg-green-500 border-green-500 text-white'
-            : 'border-gray-300 hover:border-green-400'
-        )}
-        aria-label={entry.is_completed ? 'Mark incomplete' : 'Mark complete'}
-        aria-pressed={!!entry.is_completed}
-      >
-        {entry.is_completed && <Check className="h-4 w-4" />}
-      </button>
-
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className={cn('text-sm font-medium', entry.is_completed && 'line-through text-gray-400')}>
-            {entry.activity_name}
-          </span>
-          {entry.category && (
-            <span className={cn(
-              'text-xs px-2 py-0.5 rounded-full font-medium',
-              CATEGORY_COLORS[entry.category] ?? 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300'
-            )}>
-              {entry.category}
-            </span>
+        <button
+          id={`activity-card-complete-${entry.id}`}
+          onClick={handleComplete}
+          className={cn(
+            'w-11 h-11 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors mt-0.5',
+            entry.is_completed
+              ? 'bg-green-500 border-green-500 text-white'
+              : 'border-gray-300 hover:border-green-400'
           )}
+          aria-label={entry.is_completed ? 'Mark incomplete' : 'Mark complete'}
+          aria-pressed={!!entry.is_completed}
+        >
+          {entry.is_completed && <Check className="h-4 w-4" />}
+        </button>
+
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className={cn('text-sm font-medium', entry.is_completed && 'line-through text-gray-400')}>
+              {entry.activity_name}
+            </span>
+            {entry.category && (
+              <span className={cn(
+                'text-xs px-2 py-0.5 rounded-full font-medium',
+                CATEGORY_COLORS[entry.category] ?? 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300'
+              )}>
+                {entry.category}
+              </span>
+            )}
+          </div>
+          <div className="text-xs text-gray-500 mt-0.5">
+            {formatTime(entry.time_slot)} · {entry.duration_minutes} min
+            {entry.notes && <span className="ml-2 italic break-words">{entry.notes}</span>}
+          </div>
         </div>
-        <div className="text-xs text-gray-500 mt-0.5">
-          {formatTime(entry.time_slot)} · {entry.duration_minutes} min
-          {entry.notes && <span className="ml-2 italic truncate">{entry.notes}</span>}
+
+        <div className="flex items-center gap-1 flex-shrink-0">
+          <button
+            id={`activity-card-edit-${entry.id}`}
+            onClick={() => onEdit(entry)}
+            className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 min-w-[44px] min-h-[44px] flex items-center justify-center"
+            aria-label={`Edit ${entry.activity_name}`}
+          >
+            <Edit2 className="h-4 w-4 text-gray-500" />
+          </button>
+          <button
+            id={`activity-card-remove-${entry.id}`}
+            onClick={handleRemove}
+            className="p-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900 min-w-[44px] min-h-[44px] flex items-center justify-center"
+            aria-label={`Remove ${entry.activity_name}`}
+          >
+            <Trash2 className="h-4 w-4 text-red-400" />
+          </button>
         </div>
       </div>
 
+      {/* Sub-activities below — always full width, wraps on any screen size */}
       {entry.entry_sub_activities.length > 0 && (
-        <div id={`entry-subactivities-${entry.id}`} className="flex flex-col gap-0.5 flex-shrink-0 mr-1">
+        <div id={`entry-subactivities-${entry.id}`} className="flex flex-col gap-0.5 pl-[76px]">
           {entry.entry_sub_activities.map(s => (
             <label
               key={s.id}
               id={`entry-subactivity-${s.id}`}
               className="flex items-center gap-1.5 cursor-pointer min-h-[28px]"
-              title={s.label}
             >
               <input
                 type="checkbox"
@@ -135,25 +157,6 @@ export default function ActivityCard({ entry, cardMinHeight, onUpdate, onRemove,
           ))}
         </div>
       )}
-
-      <div className="flex items-center gap-1">
-        <button
-          id={`activity-card-edit-${entry.id}`}
-          onClick={() => onEdit(entry)}
-          className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 min-w-[44px] min-h-[44px] flex items-center justify-center"
-          aria-label={`Edit ${entry.activity_name}`}
-        >
-          <Edit2 className="h-4 w-4 text-gray-500" />
-        </button>
-        <button
-          id={`activity-card-remove-${entry.id}`}
-          onClick={handleRemove}
-          className="p-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900 min-w-[44px] min-h-[44px] flex items-center justify-center"
-          aria-label={`Remove ${entry.activity_name}`}
-        >
-          <Trash2 className="h-4 w-4 text-red-400" />
-        </button>
-      </div>
     </div>
     </div>
   );
