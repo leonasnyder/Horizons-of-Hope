@@ -1,28 +1,44 @@
 'use client';
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 
-export default function LoginPage() {
+export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
-  const router = useRouter();
 
-  async function handleLogin(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     setError(null);
     const supabase = createSupabaseBrowserClient();
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/api/auth/callback?next=/reset-password`,
+    });
     if (error) {
       setError(error.message);
       setLoading(false);
     } else {
-      router.push('/scheduler');
-      router.refresh();
+      setSuccess(true);
+      setLoading(false);
     }
+  }
+
+  if (success) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <div className="bg-white rounded-xl shadow-sm border p-8 w-full max-w-sm text-center">
+          <h1 className="text-xl font-semibold text-gray-900 mb-2">Check your email</h1>
+          <p className="text-sm text-gray-600">
+            We sent a password reset link to <strong>{email}</strong>.
+          </p>
+          <p className="text-sm text-gray-500 mt-4">
+            <a href="/login" className="text-gray-700 underline">Back to sign in</a>
+          </p>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -37,8 +53,9 @@ export default function LoginPage() {
           />
           <span className="text-lg font-bold text-gray-900">Horizons of Hope</span>
         </div>
-        <h1 className="text-xl font-semibold text-gray-900 mb-6">Sign in to your account</h1>
-        <form onSubmit={handleLogin} className="space-y-4">
+        <h1 className="text-xl font-semibold text-gray-900 mb-2">Reset your password</h1>
+        <p className="text-sm text-gray-500 mb-6">Enter your email and we'll send you a reset link.</p>
+        <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
             <input
@@ -50,36 +67,17 @@ export default function LoginPage() {
               className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-700"
             />
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
-            <input
-              type="password"
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-              required
-              autoComplete="current-password"
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-700"
-            />
-          </div>
           {error && <p className="text-sm text-red-600">{error}</p>}
           <button
             type="submit"
             disabled={loading}
             className="w-full bg-gray-700 hover:bg-gray-600 text-white rounded-lg px-4 py-2 text-sm font-medium transition-colors disabled:opacity-50"
           >
-            {loading ? 'Signing in…' : 'Sign in'}
+            {loading ? 'Sending…' : 'Send reset link'}
           </button>
         </form>
-        <p className="text-sm text-gray-500 mt-3 text-center">
-          <a href="/forgot-password" className="text-gray-500 underline">
-            Forgot your password?
-          </a>
-        </p>
-        <p className="text-sm text-gray-500 mt-2 text-center">
-          No account?{' '}
-          <a href="/signup" className="text-gray-700 underline font-medium">
-            Sign up
-          </a>
+        <p className="text-sm text-gray-500 mt-4 text-center">
+          <a href="/login" className="text-gray-700 underline">Back to sign in</a>
         </p>
       </div>
     </div>
