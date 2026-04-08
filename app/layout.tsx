@@ -25,8 +25,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
         <meta name="apple-mobile-web-app-title" content="Horizons of Hope" />
-        <link rel="apple-touch-icon" href="/icons/icon-192.png" />
-        <meta name="theme-color" content="#F97316" />
+        <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+        <meta name="theme-color" content="#000000" />
       </head>
       <body className="min-h-screen bg-background font-sans antialiased">
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
