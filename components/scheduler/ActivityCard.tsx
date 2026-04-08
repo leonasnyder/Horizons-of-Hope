@@ -62,7 +62,7 @@ export default function ActivityCard({ entry, cardMinHeight, onUpdate, onRemove,
   return (
     <div ref={setNodeRef} style={style} id={`activity-card-${entry.id}`}>
     <div
-      style={cardMinHeight ? { minHeight: `${cardMinHeight}px` } : undefined}
+      style={cardMinHeight ? { minHeight: `${cardMinHeight}px`, overflow: 'visible' } : undefined}
       className={cn(
         'flex flex-col gap-1 p-3 rounded-lg border bg-white dark:bg-gray-800 shadow-sm group',
         isDragging && 'opacity-50 shadow-lg z-50',

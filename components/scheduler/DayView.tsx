@@ -287,8 +287,7 @@ export default function DayView({ date, onReset }: DayViewProps) {
                 return (
                   <div
                     key={seg.slotIdx}
-                    className="flex items-stretch"
-                    style={{ minHeight: `${slotHeight}px` }}
+                    className="flex items-start"
                   >
                     {/* Time labels at exact pixel positions */}
                     <div className="w-16 flex-shrink-0 relative select-none" style={{ minHeight: `${slotHeight}px` }}>
@@ -315,7 +314,7 @@ export default function DayView({ date, onReset }: DayViewProps) {
                       ))}
                     </div>
 
-                    {/* Activity card — minHeight fills the slot, grows if content is taller */}
+                    {/* Activity card — grows freely with content, no height clipping */}
                     <div className="flex-1 border-l border-gray-200 dark:border-gray-600 pl-1 pb-0.5">
                       <ActivityCard
                         entry={seg.entry}
