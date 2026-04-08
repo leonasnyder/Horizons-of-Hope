@@ -70,7 +70,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       }
     }
 
-    const [activity] = await sql`SELECT * FROM activities WHERE id = ${id}`;
+    const [activity] = await sql`SELECT * FROM activities WHERE id = ${id} AND user_id = ${userId}`;
     if (!activity) return NextResponse.json({ error: 'Not found' }, { status: 404 });
     return NextResponse.json(activity);
   } catch (e) {
