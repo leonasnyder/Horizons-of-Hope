@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { Plus, Archive, Search, RotateCcw, Tags, Edit2, Trash2 } from 'lucide-react';
+import { Plus, Archive, Search, RotateCcw, Tags, Edit2, Trash2, X } from 'lucide-react';
 import CategoryManager from './CategoryManager';
 import ActivityEditPanel from './ActivityEditPanel';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -43,6 +43,8 @@ export default function ActivityManager({ open, onClose }: ActivityManagerProps)
     is_default: false, default_time: '09:00', default_duration: 30,
   });
   const [newActivityDays, setNewActivityDays] = useState<number[]>(ALL_DAYS);
+  const [newSubActivities, setNewSubActivities] = useState<string[]>([]);
+  const [newSubLabel, setNewSubLabel] = useState('');
 
   const fetchActivities = () => {
     fetch('/api/activities?includeArchived=true')
@@ -141,10 +143,22 @@ export default function ActivityManager({ open, onClose }: ActivityManagerProps)
         }),
       });
       if (!res.ok) throw new Error();
+      const created = await res.json();
+      if (newSubActivities.length > 0) {
+        for (const label of newSubActivities) {
+          await fetch(`/api/activities/${created.id}/sub-activities`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ label }),
+          });
+        }
+      }
       fetchActivities();
       setAdding(false);
       setNewActivity({ name: '', description: '', category: '', color: '#F97316', is_default: false, default_time: '09:00', default_duration: 30 });
       setNewActivityDays(ALL_DAYS);
+      setNewSubActivities([]);
+      setNewSubLabel('');
       setErrors({});
       toast.success('Activity created');
     } catch {
@@ -302,8 +316,55 @@ export default function ActivityManager({ open, onClose }: ActivityManagerProps)
                 )}
               </div>
             </div>
+            <div>
+              <p className="text-xs font-semibold text-gray-600 dark:text-gray-400 mb-2">Sub-activities</p>
+              {newSubActivities.length > 0 && (
+                <div className="space-y-1 mb-2">
+                  {newSubActivities.map((label, i) => (
+                    <div key={i} className="flex items-center gap-2 px-3 py-1.5 rounded border bg-white dark:bg-gray-800 text-sm">
+                      <span className="flex-1">{label}</span>
+                      <button
+                        type="button"
+                        onClick={() => setNewSubActivities(prev => prev.filter((_, idx) => idx !== i))}
+                        className="p-1 text-gray-400 hover:text-red-500 min-w-[32px] min-h-[32px] flex items-center justify-center rounded"
+                        aria-label={`Remove ${label}`}
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Add sub-activity..."
+                  value={newSubLabel}
+                  onChange={e => setNewSubLabel(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter' && newSubLabel.trim()) {
+                      e.preventDefault();
+                      setNewSubActivities(prev => [...prev, newSubLabel.trim()]);
+                      setNewSubLabel('');
+                    }
+                  }}
+                />
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    if (newSubLabel.trim()) {
+                      setNewSubActivities(prev => [...prev, newSubLabel.trim()]);
+                      setNewSubLabel('');
+                    }
+                  }}
+                >
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
             <div className="flex gap-2 justify-end">
-              <Button variant="outline" size="sm" onClick={() => { setAdding(false); setErrors({}); }} id="new-activity-cancel">Cancel</Button>
+              <Button variant="outline" size="sm" onClick={() => { setAdding(false); setErrors({}); setNewSubActivities([]); setNewSubLabel(''); }} id="new-activity-cancel">Cancel</Button>
               <Button size="sm" onClick={createActivity} id="new-activity-submit">Create Activity</Button>
             </div>
           </div>
