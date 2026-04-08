@@ -1,19 +1,23 @@
 'use client';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Settings, Sun } from 'lucide-react';
+import { Settings } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export default function TopNav() {
   const pathname = usePathname();
   return (
-    <header id="top-nav" className="sticky top-0 z-50 border-b bg-white dark:bg-gray-900 shadow-sm">
+    <header id="top-nav" className="sticky top-0 z-50 bg-black shadow-md">
       <div className="flex items-center justify-between px-4 h-16 max-w-7xl mx-auto">
-        <div id="top-nav-brand" className="flex items-center gap-2">
-          <Sun className="h-6 w-6 text-orange-500" />
-          <span
-            className="text-xl font-bold bg-gradient-to-r from-orange-500 to-yellow-400 bg-clip-text text-transparent"
-          >
+        {/* Brand / Logo — drop your logo file as /public/logo.png to show it */}
+        <div id="top-nav-brand" className="flex items-center gap-3">
+          <img
+            src="/logo.png"
+            alt="Horizons of Hope"
+            className="h-10 w-auto object-contain"
+            onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
+          />
+          <span className="text-xl font-bold text-white tracking-wide">
             Horizons of Hope
           </span>
         </div>
@@ -29,8 +33,8 @@ export default function TopNav() {
               className={cn(
                 'px-4 py-2 rounded-lg text-sm font-medium transition-colors min-h-[44px] flex items-center',
                 pathname.startsWith(href)
-                  ? 'bg-orange-500 text-white'
-                  : 'text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800'
+                  ? 'bg-red-600 text-white'
+                  : 'text-gray-400 hover:bg-gray-800 hover:text-white'
               )}
             >
               {label}
@@ -44,8 +48,8 @@ export default function TopNav() {
           className={cn(
             'p-2 rounded-lg transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center',
             pathname === '/settings'
-              ? 'bg-orange-500 text-white'
-              : 'text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800'
+              ? 'bg-red-600 text-white'
+              : 'text-gray-400 hover:bg-gray-800 hover:text-white'
           )}
           aria-label="Settings"
         >

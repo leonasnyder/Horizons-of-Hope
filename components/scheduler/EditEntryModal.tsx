@@ -130,7 +130,7 @@ export default function EditEntryModal({ entry, onClose, onSave }: EditEntryModa
                       type="checkbox"
                       checked={selectedSubIds.includes(sub.id)}
                       onChange={() => toggleSub(sub.id)}
-                      className="h-4 w-4 rounded accent-orange-500"
+                      className="h-4 w-4 rounded accent-red-600"
                     />
                     <span className="text-sm">{sub.label}</span>
                   </label>

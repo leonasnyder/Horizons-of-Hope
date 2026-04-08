@@ -23,7 +23,7 @@ export default function DatePicker({ date, onChange }: DatePickerProps) {
       </Button>
 
       <div id="date-picker-display" className="flex items-center gap-2 min-w-[200px]">
-        <Calendar className="h-4 w-4 text-orange-500" />
+        <Calendar className="h-4 w-4 text-red-600" />
         <span className="font-semibold text-base">
           {format(parsed, 'EEEE, MMMM d, yyyy')}
         </span>

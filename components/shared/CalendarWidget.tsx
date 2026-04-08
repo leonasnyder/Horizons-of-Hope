@@ -74,8 +74,8 @@ export default function CalendarWidget({ selectedDate, onSelectDate }: CalendarW
               onClick={() => onSelectDate(dateStr)}
               className={cn(
                 'relative w-8 h-8 mx-auto rounded-full text-xs transition-colors flex items-center justify-center',
-                isSelected && 'bg-orange-500 text-white font-bold',
-                !isSelected && isCurrentMonth && 'hover:bg-orange-100 dark:hover:bg-orange-900',
+                isSelected && 'bg-red-600 text-white font-bold',
+                !isSelected && isCurrentMonth && 'hover:bg-red-100 dark:hover:bg-red-900',
                 !isCurrentMonth && 'text-gray-300 dark:text-gray-600'
               )}
               aria-label={format(day, 'MMMM d, yyyy')}
@@ -83,7 +83,7 @@ export default function CalendarWidget({ selectedDate, onSelectDate }: CalendarW
             >
               {format(day, 'd')}
               {hasActivity && !isSelected && (
-                <span className="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 bg-orange-500 rounded-full" aria-hidden="true" />
+                <span className="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 bg-red-600 rounded-full" aria-hidden="true" />
               )}
             </button>
           );

@@ -188,8 +188,8 @@ export default function ActivityManager({ open, onClose }: ActivityManagerProps)
         </div>
 
         {adding && (
-          <div id="activity-manager-form" className="border rounded-lg p-4 mb-4 bg-orange-50 dark:bg-orange-950/30 space-y-3 flex-shrink-0">
-            <h3 className="font-semibold text-sm text-orange-800 dark:text-orange-300">New Activity</h3>
+          <div id="activity-manager-form" className="border rounded-lg p-4 mb-4 bg-red-50 dark:bg-red-950/30 space-y-3 flex-shrink-0">
+            <h3 className="font-semibold text-sm text-red-800 dark:text-red-400">New Activity</h3>
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label htmlFor="new-activity-name">Name *</Label>
@@ -234,7 +234,7 @@ export default function ActivityManager({ open, onClose }: ActivityManagerProps)
                   className="mt-1"
                 />
                 {newActivity.default_time && (
-                  <p className="text-xs text-orange-600 mt-0.5 font-medium">
+                  <p className="text-xs text-red-700 mt-0.5 font-medium">
                     {(() => {
                       const [h, m] = newActivity.default_time.split(':').map(Number);
                       const period = h >= 12 ? 'PM' : 'AM';
@@ -267,7 +267,7 @@ export default function ActivityManager({ open, onClose }: ActivityManagerProps)
                   <Label htmlFor="new-activity-default">Auto-schedule (recurring)</Label>
                 </div>
                 {newActivity.is_default && (
-                  <div className="pl-2 border-l-2 border-orange-200 space-y-2">
+                  <div className="pl-2 border-l-2 border-red-200 space-y-2">
                     <p className="text-xs text-gray-500">Repeat on</p>
                     <div className="flex flex-wrap gap-1">
                       {DAY_LABELS.map((day, i) => (
@@ -279,8 +279,8 @@ export default function ActivityManager({ open, onClose }: ActivityManagerProps)
                           )}
                           className={`px-2.5 py-1 rounded-md text-xs font-medium border transition-colors ${
                             newActivityDays.includes(i)
-                              ? 'bg-orange-500 text-white border-orange-500'
-                              : 'bg-white dark:bg-gray-700 text-gray-600 border-gray-200 hover:border-orange-300'
+                              ? 'bg-red-600 text-white border-red-600'
+                              : 'bg-white dark:bg-gray-700 text-gray-600 border-gray-200 hover:border-red-400'
                           }`}
                         >
                           {day}
@@ -291,8 +291,8 @@ export default function ActivityManager({ open, onClose }: ActivityManagerProps)
                         onClick={() => setNewActivityDays(newActivityDays.length === 7 ? [] : ALL_DAYS)}
                         className={`px-2.5 py-1 rounded-md text-xs font-medium border transition-colors ${
                           newActivityDays.length === 7
-                            ? 'bg-orange-500 text-white border-orange-500'
-                            : 'text-gray-500 border-gray-200 hover:border-orange-300'
+                            ? 'bg-red-600 text-white border-red-600'
+                            : 'text-gray-500 border-gray-200 hover:border-red-400'
                         }`}
                       >
                         Every day

@@ -126,7 +126,7 @@ export default function ActivityCard({ entry, cardMinHeight, onUpdate, onRemove,
                 type="checkbox"
                 checked={!!s.completed}
                 onChange={e => onToggleSubActivity(entry.id, s.id, e.target.checked ? 1 : 0)}
-                className="h-4 w-4 rounded accent-orange-500 flex-shrink-0"
+                className="h-4 w-4 rounded accent-red-600 flex-shrink-0"
               />
               <span className={`text-xs ${s.completed ? 'line-through text-gray-400' : 'text-gray-600 dark:text-gray-300'}`}>
                 {s.label}

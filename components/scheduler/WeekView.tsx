@@ -100,7 +100,7 @@ export default function WeekView({ selectedDate, refreshKey, onSelectDay }: Week
 
       {loading ? (
         <div id="week-view-loading" className="flex items-center justify-center h-48">
-          <Loader2 className="h-8 w-8 animate-spin text-orange-500" />
+          <Loader2 className="h-8 w-8 animate-spin text-red-600" />
         </div>
       ) : (
         <div id="week-view-grid" className="grid grid-cols-7 gap-1 overflow-x-auto">
@@ -111,7 +111,7 @@ export default function WeekView({ selectedDate, refreshKey, onSelectDay }: Week
             return (
               <div key={dateStr} id={`week-col-${dateStr}`} className="min-w-[100px]">
                 <div className={`rounded-t-lg text-sm font-semibold transition-colors min-h-[52px] flex flex-col ${
-                  isSelected ? 'bg-orange-500 text-white' : 'bg-gray-50 dark:bg-gray-800 text-gray-700 dark:text-gray-300'
+                  isSelected ? 'bg-red-600 text-white' : 'bg-gray-50 dark:bg-gray-800 text-gray-700 dark:text-gray-300'
                 }`}>
                   <button
                     id={`week-header-${dateStr}`}
@@ -141,12 +141,12 @@ export default function WeekView({ selectedDate, refreshKey, onSelectDay }: Week
                         key={e.id}
                         id={`week-entry-${e.id}`}
                         onClick={() => onSelectDay(dateStr)}
-                        className={`w-full text-left text-xs p-1.5 rounded bg-orange-50 dark:bg-orange-900/30 border border-orange-200 dark:border-orange-700 hover:bg-orange-100 dark:hover:bg-orange-900/50 transition-colors ${
+                        className={`w-full text-left text-xs p-1.5 rounded bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-orange-700 hover:bg-red-100 dark:hover:bg-red-900/50 transition-colors ${
                           e.is_completed ? 'opacity-50 line-through' : ''
                         }`}
                         aria-label={`Edit ${e.activity_name} — go to ${format(day, 'EEEE')}`}
                       >
-                        <span className="font-mono text-orange-600 dark:text-orange-400 text-xs">{formatTime(e.time_slot)}</span>
+                        <span className="font-mono text-red-700 dark:text-red-500 text-xs">{formatTime(e.time_slot)}</span>
                         <br />
                         <span className="text-gray-700 dark:text-gray-300 leading-tight">{e.activity_name}</span>
                       </button>

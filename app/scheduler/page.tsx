@@ -52,7 +52,7 @@ export default function SchedulerPage() {
                 onClick={() => setViewMode('day')}
                 className={`flex items-center gap-1.5 px-4 py-2 text-sm font-medium transition-colors min-h-[44px] ${
                   viewMode === 'day'
-                    ? 'bg-orange-500 text-white'
+                    ? 'bg-red-600 text-white'
                     : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-50'
                 }`}
               >
@@ -63,7 +63,7 @@ export default function SchedulerPage() {
                 onClick={() => setViewMode('week')}
                 className={`flex items-center gap-1.5 px-4 py-2 text-sm font-medium transition-colors min-h-[44px] ${
                   viewMode === 'week'
-                    ? 'bg-orange-500 text-white'
+                    ? 'bg-red-600 text-white'
                     : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-50'
                 }`}
               >

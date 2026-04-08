@@ -124,7 +124,7 @@ export default function SettingsPage() {
 
       {/* Notifications */}
       <Card id="settings-notifications">
-        <CardHeader><CardTitle className="flex items-center gap-2"><Bell className="h-5 w-5 text-orange-500" /> Notifications</CardTitle></CardHeader>
+        <CardHeader><CardTitle className="flex items-center gap-2"><Bell className="h-5 w-5 text-red-600" /> Notifications</CardTitle></CardHeader>
         <CardContent className="space-y-4">
           <div className="flex items-center justify-between">
             <div>
@@ -244,7 +244,7 @@ export default function SettingsPage() {
 
       {/* Theme */}
       <Card id="settings-theme">
-        <CardHeader><CardTitle className="flex items-center gap-2"><Sun className="h-5 w-5 text-orange-500" /> Appearance</CardTitle></CardHeader>
+        <CardHeader><CardTitle className="flex items-center gap-2"><Sun className="h-5 w-5 text-red-600" /> Appearance</CardTitle></CardHeader>
         <CardContent>
           <div id="settings-theme-toggle" className="flex rounded-lg border overflow-hidden w-fit">
             {[
@@ -258,7 +258,7 @@ export default function SettingsPage() {
                 onClick={() => { setTheme(value); saveSetting('theme', value); }}
                 className={`flex items-center gap-1.5 px-4 py-2 text-sm font-medium min-h-[44px] transition-colors ${
                   theme === value
-                    ? 'bg-orange-500 text-white'
+                    ? 'bg-red-600 text-white'
                     : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-50'
                 }`}
               >
@@ -271,7 +271,7 @@ export default function SettingsPage() {
 
       {/* Data Management */}
       <Card id="settings-data">
-        <CardHeader><CardTitle className="flex items-center gap-2"><Download className="h-5 w-5 text-orange-500" /> Data Management</CardTitle></CardHeader>
+        <CardHeader><CardTitle className="flex items-center gap-2"><Download className="h-5 w-5 text-red-600" /> Data Management</CardTitle></CardHeader>
         <CardContent className="space-y-3">
           <Button id="settings-export" variant="outline" className="w-full justify-start" onClick={exportData}>
             <Download className="h-4 w-4 mr-2" /> Export all data as JSON

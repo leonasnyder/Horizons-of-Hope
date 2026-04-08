@@ -149,7 +149,7 @@ export default function AddActivityModal({ date, defaultSlot, onClose, onAdded }
                           e.target.checked ? [...prev, s.id] : prev.filter(id => id !== s.id)
                         )
                       }
-                      className="h-4 w-4 rounded accent-orange-500"
+                      className="h-4 w-4 rounded accent-red-600"
                     />
                     <span className="text-sm">{s.label}</span>
                   </label>

@@ -224,7 +224,7 @@ export default function DayView({ date, onReset }: DayViewProps) {
   if (loading) {
     return (
       <div id="day-view-loading" className="flex items-center justify-center h-64">
-        <Loader2 className="h-8 w-8 animate-spin text-orange-500" />
+        <Loader2 className="h-8 w-8 animate-spin text-red-600" />
       </div>
     );
   }
@@ -371,7 +371,7 @@ export default function DayView({ date, onReset }: DayViewProps) {
                     <button
                       id={`add-to-slot-${timeStr.replace(':', '-')}`}
                       onClick={() => setAddingToSlot(timeStr)}
-                      className="w-full h-full min-h-[22px] border border-dashed border-transparent hover:border-orange-300 hover:bg-orange-50 dark:hover:bg-orange-950/20 rounded transition-colors flex items-center justify-center gap-1 text-xs text-transparent hover:text-orange-400"
+                      className="w-full h-full min-h-[22px] border border-dashed border-transparent hover:border-red-400 hover:bg-red-50 dark:hover:bg-red-950/20 rounded transition-colors flex items-center justify-center gap-1 text-xs text-transparent hover:text-red-500"
                       aria-label={`Add activity at ${formatTime(timeStr)}`}
                     >
                       <Plus className="h-3 w-3" />

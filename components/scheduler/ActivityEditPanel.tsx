@@ -274,7 +274,7 @@ export default function ActivityEditPanel({
                       className="mt-1 w-32"
                     />
                     {slot.time && (
-                      <p className="text-xs text-orange-600 mt-0.5 font-medium">{formatPreview(slot.time)}</p>
+                      <p className="text-xs text-red-700 mt-0.5 font-medium">{formatPreview(slot.time)}</p>
                     )}
                   </div>
                   <div>
@@ -302,8 +302,8 @@ export default function ActivityEditPanel({
                         onClick={() => toggleDay(i, d)}
                         className={`px-2.5 py-1 rounded-md text-xs font-medium border transition-colors ${
                           slot.days.includes(d)
-                            ? 'bg-orange-500 text-white border-orange-500'
-                            : 'bg-white dark:bg-gray-700 text-gray-600 dark:text-gray-300 border-gray-200 hover:border-orange-300'
+                            ? 'bg-red-600 text-white border-red-600'
+                            : 'bg-white dark:bg-gray-700 text-gray-600 dark:text-gray-300 border-gray-200 hover:border-red-400'
                         }`}
                       >
                         {day}
@@ -314,8 +314,8 @@ export default function ActivityEditPanel({
                       onClick={() => updateSlot(i, 'days', slot.days.length === 7 ? [] : ALL_DAYS)}
                       className={`px-2.5 py-1 rounded-md text-xs font-medium border transition-colors ${
                         slot.days.length === 7
-                          ? 'bg-orange-500 text-white border-orange-500'
-                          : 'text-gray-500 border-gray-200 hover:border-orange-300'
+                          ? 'bg-red-600 text-white border-red-600'
+                          : 'text-gray-500 border-gray-200 hover:border-red-400'
                       }`}
                     >
                       Every day
