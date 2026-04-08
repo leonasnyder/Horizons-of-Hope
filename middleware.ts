@@ -4,11 +4,16 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
 export async function middleware(request: NextRequest) {
+  // If Supabase env vars are missing, skip auth and allow the request through
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+    return NextResponse.next({ request });
+  }
+
   let supabaseResponse = NextResponse.next({ request });
 
   const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    process.env.NEXT_PUBLIC_SUPABASE_URL,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
     {
       cookies: {
         getAll() {
@@ -26,7 +31,13 @@ export async function middleware(request: NextRequest) {
   );
 
   // Refresh session — must call getUser(), not getSession()
-  const { data: { user } } = await supabase.auth.getUser();
+  let user = null;
+  try {
+    const { data } = await supabase.auth.getUser();
+    user = data.user;
+  } catch {
+    return supabaseResponse;
+  }
 
   const pathname = request.nextUrl.pathname;
   const isAuthPage = pathname === '/login' || pathname === '/signup';
