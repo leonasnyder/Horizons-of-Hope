@@ -1,15 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import sql from '@/lib/db';
+import { requireUser } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(req: NextRequest) {
+  const { userId, errorResponse } = await requireUser();
+  if (errorResponse) return errorResponse;
   try {
     const { searchParams } = new URL(req.url);
     const includeArchived = searchParams.get('includeArchived') === 'true';
     const activities = includeArchived
-      ? await sql`SELECT * FROM activities ORDER BY name`
-      : await sql`SELECT * FROM activities WHERE is_archived = 0 ORDER BY name`;
+      ? await sql`SELECT * FROM activities WHERE user_id = ${userId} ORDER BY name`
+      : await sql`SELECT * FROM activities WHERE user_id = ${userId} AND is_archived = 0 ORDER BY name`;
     return NextResponse.json(activities);
   } catch (e) {
     return NextResponse.json({ error: String(e) }, { status: 500 });
@@ -17,14 +20,16 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const { userId, errorResponse } = await requireUser();
+  if (errorResponse) return errorResponse;
   try {
     const body = await req.json();
     const { name, description, category, color, is_default, default_time, default_duration, days_of_week } = body;
     if (!name) return NextResponse.json({ error: 'name is required' }, { status: 400 });
 
     const [activity] = await sql`
-      INSERT INTO activities (name, description, category, color, is_default)
-      VALUES (${name}, ${description ?? null}, ${category ?? null}, ${color ?? '#F97316'}, ${is_default ?? 0})
+      INSERT INTO activities (user_id, name, description, category, color, is_default)
+      VALUES (${userId}, ${name}, ${description ?? null}, ${category ?? null}, ${color ?? '#F97316'}, ${is_default ?? 0})
       RETURNING *
     `;
 

@@ -1,10 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import sql from '@/lib/db';
+import { requireUser } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
+  const { userId, errorResponse } = await requireUser();
+  if (errorResponse) return errorResponse;
   try {
+    const activity = await sql`SELECT id FROM activities WHERE id = ${Number(params.id)} AND user_id = ${userId}`;
+    if (activity.length === 0) return NextResponse.json({ error: 'Not found' }, { status: 404 });
     const subs = await sql`
       SELECT * FROM activity_sub_activities
       WHERE activity_id = ${Number(params.id)} AND is_active = 1
@@ -17,9 +22,11 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
 }
 
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+  const { userId, errorResponse } = await requireUser();
+  if (errorResponse) return errorResponse;
   try {
     const activityId = Number(params.id);
-    const activity = await sql`SELECT id FROM activities WHERE id = ${activityId} AND is_archived = 0`;
+    const activity = await sql`SELECT id FROM activities WHERE id = ${activityId} AND user_id = ${userId} AND is_archived = 0`;
     if (activity.length === 0) return NextResponse.json({ error: 'Activity not found' }, { status: 404 });
     const { label } = await req.json();
     if (!label?.trim()) return NextResponse.json({ error: 'label is required' }, { status: 400 });
