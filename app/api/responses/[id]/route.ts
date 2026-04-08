@@ -46,7 +46,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       SELECT gr.*, gs.label as subcategory_label
       FROM goal_responses gr
       LEFT JOIN goal_subcategories gs ON gr.subcategory_id = gs.id
-      WHERE gr.id = ${id}
+      WHERE gr.id = ${id} AND gr.user_id = ${userId}
     `;
     return NextResponse.json(row);
   } catch (e) {
