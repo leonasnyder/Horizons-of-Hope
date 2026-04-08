@@ -287,11 +287,11 @@ export default function DayView({ date, onReset }: DayViewProps) {
                 return (
                   <div
                     key={seg.slotIdx}
-                    className="flex"
-                    style={{ height: `${slotHeight}px`, overflow: 'visible' }}
+                    className="flex items-stretch"
+                    style={{ minHeight: `${slotHeight}px` }}
                   >
                     {/* Time labels at exact pixel positions */}
-                    <div className="w-16 flex-shrink-0 relative select-none" style={{ height: `${slotHeight}px` }}>
+                    <div className="w-16 flex-shrink-0 relative select-none" style={{ minHeight: `${slotHeight}px` }}>
                       {slotLabels.map(({ i, isHour, isHalf, m, timeStr }) => (
                         <div
                           key={i}
