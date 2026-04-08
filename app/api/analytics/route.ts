@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import sql from '@/lib/db';
 import { format, subDays, parseISO } from 'date-fns';
+import { requireUser } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(req: NextRequest) {
+  const { userId, errorResponse } = await requireUser();
+  if (errorResponse) return errorResponse;
   try {
     const { searchParams } = new URL(req.url);
     const date = searchParams.get('date') ?? format(new Date(), 'yyyy-MM-dd');
@@ -20,7 +23,7 @@ export async function GET(req: NextRequest) {
         COUNT(*) as total,
         SUM(CASE WHEN response_type='correct' THEN 1 ELSE 0 END) as correct
       FROM goal_responses
-      WHERE date >= ${startDate} AND date <= ${date}
+      WHERE user_id = ${userId} AND date >= ${startDate} AND date <= ${date}
       ${goalFilter}
       GROUP BY date
       ORDER BY date
@@ -31,7 +34,7 @@ export async function GET(req: NextRequest) {
         COUNT(*) as total,
         SUM(CASE WHEN response_type='correct' THEN 1 ELSE 0 END) as correct,
         SUM(CASE WHEN response_type='incorrect' THEN 1 ELSE 0 END) as incorrect
-      FROM goal_responses WHERE date = ${date}
+      FROM goal_responses WHERE user_id = ${userId} AND date = ${date}
     `;
 
     const goalSummary = await sql`
@@ -40,7 +43,7 @@ export async function GET(req: NextRequest) {
         SUM(CASE WHEN gr.response_type='correct' THEN 1 ELSE 0 END) as correct
       FROM goal_responses gr
       JOIN goals g ON gr.goal_id = g.id
-      WHERE gr.date = ${date}
+      WHERE gr.user_id = ${userId} AND gr.date = ${date}
       GROUP BY gr.goal_id, g.name, g.color
       ORDER BY g.name
     `;
@@ -49,7 +52,7 @@ export async function GET(req: NextRequest) {
       SELECT gr.subcategory_id, gs.label, gr.response_type, COUNT(*) as count, gr.goal_id
       FROM goal_responses gr
       LEFT JOIN goal_subcategories gs ON gr.subcategory_id = gs.id
-      WHERE gr.date >= ${startDate} AND gr.date <= ${date}
+      WHERE gr.user_id = ${userId} AND gr.date >= ${startDate} AND gr.date <= ${date}
       ${subcatGoalFilter}
       GROUP BY gr.subcategory_id, gs.label, gr.response_type, gr.goal_id
       ORDER BY gs.label, count DESC
@@ -65,7 +68,7 @@ export async function GET(req: NextRequest) {
         SUM(CASE WHEN date < ${thisWeekStart} THEN (CASE WHEN response_type='correct' THEN 1 ELSE 0 END) ELSE 0 END) as last_correct,
         SUM(CASE WHEN date < ${thisWeekStart} THEN 1 ELSE 0 END) as last_total
       FROM goal_responses
-      WHERE date >= ${lastWeekStart} AND date <= ${date}
+      WHERE user_id = ${userId} AND date >= ${lastWeekStart} AND date <= ${date}
     `;
 
     return NextResponse.json({
