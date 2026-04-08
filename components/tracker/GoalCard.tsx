@@ -192,15 +192,21 @@ export default function GoalCard({ goal, date, responses, onResponseAdded }: Goa
           </div>
 
           {/* Session note */}
-          <div id={`goal-card-note-${goal.id}`} className="flex items-center gap-2">
-            <MessageSquare className="h-4 w-4 text-gray-400 flex-shrink-0" aria-hidden="true" />
-            <input
+          <div id={`goal-card-note-${goal.id}`} className="space-y-1.5">
+            <div className="flex items-center gap-1.5">
+              <MessageSquare className="h-3.5 w-3.5 text-gray-400" aria-hidden="true" />
+              <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Session Notes</span>
+              {sessionNote.trim() && (
+                <span className="text-xs text-amber-600 dark:text-amber-400 font-medium">— attached to next response</span>
+              )}
+            </div>
+            <textarea
               id={`goal-session-note-${goal.id}`}
-              type="text"
-              placeholder="Add session note (attached to next response)..."
+              placeholder="Write notes about this session... (will be attached to the next response logged)"
               value={sessionNote}
               onChange={e => setSessionNote(e.target.value)}
-              className="flex-1 text-sm border rounded-lg px-3 py-2 min-h-[44px] bg-background focus:outline-none focus:ring-2 focus:ring-ring dark:bg-gray-700 dark:border-gray-600"
+              rows={3}
+              className="w-full text-sm border rounded-lg px-3 py-2 bg-background focus:outline-none focus:ring-2 focus:ring-ring dark:bg-gray-700 dark:border-gray-600 resize-none"
             />
           </div>
         </div>
