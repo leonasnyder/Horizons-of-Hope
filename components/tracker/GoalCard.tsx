@@ -1,6 +1,6 @@
 'use client';
-import { useState } from 'react';
-import { ChevronDown, ChevronUp, MessageSquare } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { ChevronDown, ChevronUp, MessageSquare, Save } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell
 } from 'recharts';
@@ -44,7 +44,21 @@ interface GoalCardProps {
 export default function GoalCard({ goal, date, responses, onResponseAdded }: GoalCardProps) {
   const [expanded, setExpanded] = useState(true);
   const [sessionNote, setSessionNote] = useState('');
+  const [savedNote, setSavedNote] = useState('');
+  const [savingNote, setSavingNote] = useState(false);
   const [editingResponse, setEditingResponse] = useState<Response | null>(null);
+
+  useEffect(() => {
+    fetch(`/api/goals/session-notes?goal_id=${goal.id}&date=${date}`)
+      .then(r => r.json())
+      .then(data => {
+        if (data.notes) {
+          setSessionNote(data.notes);
+          setSavedNote(data.notes);
+        }
+      })
+      .catch(() => {});
+  }, [goal.id, date]);
 
   const correct = responses.filter(r => r.response_type === 'correct').length;
   const incorrect = responses.filter(r => r.response_type === 'incorrect').length;
@@ -64,7 +78,6 @@ export default function GoalCard({ goal, date, responses, onResponseAdded }: Goa
           subcategory_id,
           response_type,
           date,
-          session_notes: sessionNote.trim() || null,
         }),
       });
       if (!res.ok) throw new Error();
@@ -72,9 +85,26 @@ export default function GoalCard({ goal, date, responses, onResponseAdded }: Goa
       toast.success(
         response_type === 'correct' ? '✓ Correct response logged' : '✗ Incorrect response logged'
       );
-      setSessionNote('');
     } catch {
       toast.error('Failed to log response');
+    }
+  };
+
+  const handleSaveNote = async () => {
+    setSavingNote(true);
+    try {
+      const res = await fetch('/api/goals/session-notes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ goal_id: goal.id, date, notes: sessionNote }),
+      });
+      if (!res.ok) throw new Error();
+      setSavedNote(sessionNote);
+      toast.success('Session note saved');
+    } catch {
+      toast.error('Failed to save note');
+    } finally {
+      setSavingNote(false);
     }
   };
 
@@ -193,16 +223,23 @@ export default function GoalCard({ goal, date, responses, onResponseAdded }: Goa
 
           {/* Session note */}
           <div id={`goal-card-note-${goal.id}`} className="space-y-1.5">
-            <div className="flex items-center gap-1.5">
-              <MessageSquare className="h-3.5 w-3.5 text-gray-400" aria-hidden="true" />
-              <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Session Notes</span>
-              {sessionNote.trim() && (
-                <span className="text-xs text-amber-600 dark:text-amber-400 font-medium">— attached to next response</span>
-              )}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5">
+                <MessageSquare className="h-3.5 w-3.5 text-gray-400" aria-hidden="true" />
+                <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Session Notes</span>
+              </div>
+              <button
+                onClick={handleSaveNote}
+                disabled={savingNote || sessionNote === savedNote}
+                className="flex items-center gap-1 text-xs px-2.5 py-1 rounded-lg bg-gray-700 hover:bg-gray-600 text-white disabled:opacity-40 transition-colors"
+              >
+                <Save className="h-3 w-3" />
+                {savingNote ? 'Saving...' : sessionNote === savedNote && savedNote ? 'Saved' : 'Save'}
+              </button>
             </div>
             <textarea
               id={`goal-session-note-${goal.id}`}
-              placeholder="Write notes about this session... (will be attached to the next response logged)"
+              placeholder="Write notes about today's session..."
               value={sessionNote}
               onChange={e => setSessionNote(e.target.value)}
               rows={3}
