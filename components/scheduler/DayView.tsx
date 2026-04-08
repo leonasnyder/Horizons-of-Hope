@@ -99,6 +99,56 @@ export default function DayView({ date, onReset }: DayViewProps) {
     }
   }, [fetchEntries]);
 
+  const handleUpdateWithCascade = useCallback(async (id: number, data: Record<string, unknown>) => {
+    if (!('time_slot' in data) && !('duration_minutes' in data)) {
+      return handleUpdate(id, data);
+    }
+    try {
+      const res = await fetch(`/api/schedule/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) throw new Error();
+
+      // Re-fetch to get updated state, then cascade shifts
+      const refreshed = await fetch(`/api/schedule?date=${date}`).then(r => r.json());
+      if (!Array.isArray(refreshed)) { await fetchEntries(); return; }
+
+      const sorted = [...refreshed].sort((a: ScheduleEntry, b: ScheduleEntry) =>
+        timeToMinutes(a.time_slot) - timeToMinutes(b.time_slot)
+      );
+
+      const cascadeUpdates: Array<{ id: number; time_slot: string }> = [];
+      for (let i = 0; i < sorted.length - 1; i++) {
+        const curr = sorted[i];
+        const next = sorted[i + 1];
+        const currEndMin = timeToMinutes(curr.time_slot) + curr.duration_minutes;
+        const nextStartMin = timeToMinutes(next.time_slot);
+        if (currEndMin > nextStartMin) {
+          const newSlot = minutesToSlot(currEndMin);
+          sorted[i + 1] = { ...next, time_slot: newSlot };
+          cascadeUpdates.push({ id: next.id, time_slot: newSlot });
+        }
+      }
+
+      if (cascadeUpdates.length > 0) {
+        await Promise.all(cascadeUpdates.map(u =>
+          fetch(`/api/schedule/${u.id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ time_slot: u.time_slot }),
+          })
+        ));
+        toast.success(`Shifted ${cascadeUpdates.length} activit${cascadeUpdates.length === 1 ? 'y' : 'ies'} to avoid overlap`);
+      }
+
+      await fetchEntries();
+    } catch {
+      toast.error('Failed to update activity');
+    }
+  }, [date, handleUpdate, fetchEntries]);
+
   const handleRemove = useCallback(async (id: number) => {
     try {
       const res = await fetch(`/api/schedule/${id}`, { method: 'DELETE' });
@@ -399,7 +449,7 @@ export default function DayView({ date, onReset }: DayViewProps) {
           entry={editingEntry}
           onClose={() => setEditingEntry(null)}
           onSave={async (data) => {
-            await handleUpdate(editingEntry.id, data);
+            await handleUpdateWithCascade(editingEntry.id, data);
             setEditingEntry(null);
             toast.success('Activity updated');
           }}
