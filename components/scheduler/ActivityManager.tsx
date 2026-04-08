@@ -42,7 +42,9 @@ export default function ActivityManager({ open, onClose }: ActivityManagerProps)
     name: '', description: '', category: '', color: '#F97316',
     is_default: false, default_time: '09:00', default_duration: 30,
   });
-  const [newActivityDays, setNewActivityDays] = useState<number[]>(ALL_DAYS);
+  const [newActivitySlots, setNewActivitySlots] = useState<Array<{ time: string; duration: number; days: number[] }>>([
+    { time: '09:00', duration: 30, days: ALL_DAYS },
+  ]);
   const [newSubActivities, setNewSubActivities] = useState<string[]>([]);
   const [newSubLabel, setNewSubLabel] = useState('');
 
@@ -119,15 +121,15 @@ export default function ActivityManager({ open, onClose }: ActivityManagerProps)
 
   const createActivity = async () => {
     if (!validateNew()) return;
-    if (newActivity.is_default && newActivityDays.length === 0) {
-      toast.error('Select at least one day for the recurring schedule');
-      return;
+    if (newActivity.is_default) {
+      for (const s of newActivitySlots) {
+        if (s.days.length === 0) {
+          toast.error('Each time slot needs at least one day selected');
+          return;
+        }
+      }
     }
     try {
-      const isAllDays = newActivityDays.length === 7;
-      const daysValue = newActivity.is_default
-        ? (isAllDays ? null : newActivityDays.sort().join(','))
-        : null;
       const res = await fetch('/api/activities', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -137,9 +139,11 @@ export default function ActivityManager({ open, onClose }: ActivityManagerProps)
           category: newActivity.category || null,
           color: newActivity.color,
           is_default: newActivity.is_default ? 1 : 0,
-          default_time: newActivity.default_time,
-          default_duration: newActivity.default_duration,
-          days_of_week: daysValue,
+          defaults: newActivity.is_default ? newActivitySlots.map(s => ({
+            default_time: s.time,
+            default_duration: s.duration,
+            days_of_week: s.days.length === 7 ? null : s.days.sort().join(','),
+          })) : [],
         }),
       });
       if (!res.ok) throw new Error();
@@ -156,7 +160,7 @@ export default function ActivityManager({ open, onClose }: ActivityManagerProps)
       fetchActivities();
       setAdding(false);
       setNewActivity({ name: '', description: '', category: '', color: '#F97316', is_default: false, default_time: '09:00', default_duration: 30 });
-      setNewActivityDays(ALL_DAYS);
+      setNewActivitySlots([{ time: '09:00', duration: 30, days: ALL_DAYS }]);
       setNewSubActivities([]);
       setNewSubLabel('');
       setErrors({});
@@ -238,39 +242,6 @@ export default function ActivityManager({ open, onClose }: ActivityManagerProps)
                   placeholder="Optional description..."
                 />
               </div>
-              <div>
-                <Label htmlFor="new-activity-time">Default Time</Label>
-                <Input
-                  id="new-activity-time"
-                  type="time"
-                  value={newActivity.default_time}
-                  onChange={e => setNewActivity(p => ({ ...p, default_time: e.target.value }))}
-                  className="mt-1"
-                />
-                {newActivity.default_time && (
-                  <p className="text-xs text-red-700 mt-0.5 font-medium">
-                    {(() => {
-                      const [h, m] = newActivity.default_time.split(':').map(Number);
-                      const period = h >= 12 ? 'PM' : 'AM';
-                      const hour = h % 12 || 12;
-                      return `${hour}:${String(m).padStart(2, '0')} ${period}`;
-                    })()}
-                  </p>
-                )}
-              </div>
-              <div>
-                <Label htmlFor="new-activity-duration">Default Duration (min)</Label>
-                <Input
-                  id="new-activity-duration"
-                  type="number"
-                  min="5"
-                  max="240"
-                  step="5"
-                  value={newActivity.default_duration}
-                  onChange={e => setNewActivity(p => ({ ...p, default_duration: Number(e.target.value) }))}
-                  className="mt-1"
-                />
-              </div>
               <div className="col-span-2 space-y-2">
                 <div className="flex items-center gap-3">
                   <Switch
@@ -281,37 +252,97 @@ export default function ActivityManager({ open, onClose }: ActivityManagerProps)
                   <Label htmlFor="new-activity-default">Auto-schedule (recurring)</Label>
                 </div>
                 {newActivity.is_default && (
-                  <div className="pl-2 border-l-2 border-red-200 space-y-2">
-                    <p className="text-xs text-gray-500">Repeat on</p>
-                    <div className="flex flex-wrap gap-1">
-                      {DAY_LABELS.map((day, i) => (
-                        <button
-                          key={i}
-                          type="button"
-                          onClick={() => setNewActivityDays(prev =>
-                            prev.includes(i) ? prev.filter(d => d !== i) : [...prev, i].sort()
+                  <div className="space-y-3 pt-1">
+                    {newActivitySlots.map((slot, i) => (
+                      <div key={i} className="border rounded-lg p-3 bg-white dark:bg-gray-900 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-semibold text-gray-500">
+                            Time slot {newActivitySlots.length > 1 ? i + 1 : ''}
+                          </span>
+                          {newActivitySlots.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => setNewActivitySlots(prev => prev.filter((_, idx) => idx !== i))}
+                              className="p-1 text-gray-400 hover:text-red-500"
+                              aria-label="Remove time slot"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
                           )}
-                          className={`px-2.5 py-1 rounded-md text-xs font-medium border transition-colors ${
-                            newActivityDays.includes(i)
-                              ? 'bg-red-600 text-white border-red-600'
-                              : 'bg-white dark:bg-gray-700 text-gray-600 border-gray-200 hover:border-red-400'
-                          }`}
-                        >
-                          {day}
-                        </button>
-                      ))}
-                      <button
-                        type="button"
-                        onClick={() => setNewActivityDays(newActivityDays.length === 7 ? [] : ALL_DAYS)}
-                        className={`px-2.5 py-1 rounded-md text-xs font-medium border transition-colors ${
-                          newActivityDays.length === 7
-                            ? 'bg-red-600 text-white border-red-600'
-                            : 'text-gray-500 border-gray-200 hover:border-red-400'
-                        }`}
-                      >
-                        Every day
-                      </button>
-                    </div>
+                        </div>
+                        <div className="flex gap-3">
+                          <div>
+                            <Label className="text-xs">Time</Label>
+                            <Input
+                              type="time"
+                              value={slot.time}
+                              onChange={e => setNewActivitySlots(prev => prev.map((s, idx) => idx === i ? { ...s, time: e.target.value } : s))}
+                              className="mt-1 w-32"
+                            />
+                            {slot.time && (
+                              <p className="text-xs text-red-700 mt-0.5 font-medium">
+                                {(() => { const [h, m] = slot.time.split(':').map(Number); return `${h % 12 || 12}:${String(m).padStart(2,'0')} ${h >= 12 ? 'PM' : 'AM'}`; })()}
+                              </p>
+                            )}
+                          </div>
+                          <div>
+                            <Label className="text-xs">Duration (min)</Label>
+                            <Input
+                              type="number"
+                              min="5"
+                              max="240"
+                              step="5"
+                              value={slot.duration}
+                              onChange={e => setNewActivitySlots(prev => prev.map((s, idx) => idx === i ? { ...s, duration: Number(e.target.value) } : s))}
+                              className="mt-1 w-24"
+                            />
+                          </div>
+                        </div>
+                        <div>
+                          <p className="text-xs text-gray-500 mb-1">Repeat on</p>
+                          <div className="flex flex-wrap gap-1">
+                            {DAY_LABELS.map((day, d) => (
+                              <button
+                                key={d}
+                                type="button"
+                                onClick={() => setNewActivitySlots(prev => prev.map((s, idx) => {
+                                  if (idx !== i) return s;
+                                  const days = s.days.includes(d) ? s.days.filter(x => x !== d) : [...s.days, d].sort();
+                                  return { ...s, days };
+                                }))}
+                                className={`px-2.5 py-1 rounded-md text-xs font-medium border transition-colors ${
+                                  slot.days.includes(d)
+                                    ? 'bg-red-600 text-white border-red-600'
+                                    : 'bg-white dark:bg-gray-700 text-gray-600 border-gray-200 hover:border-red-400'
+                                }`}
+                              >
+                                {day}
+                              </button>
+                            ))}
+                            <button
+                              type="button"
+                              onClick={() => setNewActivitySlots(prev => prev.map((s, idx) => idx === i ? { ...s, days: s.days.length === 7 ? [] : ALL_DAYS } : s))}
+                              className={`px-2.5 py-1 rounded-md text-xs font-medium border transition-colors ${
+                                slot.days.length === 7
+                                  ? 'bg-red-600 text-white border-red-600'
+                                  : 'text-gray-500 border-gray-200 hover:border-red-400'
+                              }`}
+                            >
+                              Every day
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setNewActivitySlots(prev => [...prev, { time: '09:00', duration: 30, days: ALL_DAYS }])}
+                      className="w-full"
+                    >
+                      <Plus className="h-3.5 w-3.5 mr-1" /> Add another time
+                    </Button>
                   </div>
                 )}
               </div>
@@ -364,7 +395,7 @@ export default function ActivityManager({ open, onClose }: ActivityManagerProps)
               </div>
             </div>
             <div className="flex gap-2 justify-end">
-              <Button variant="outline" size="sm" onClick={() => { setAdding(false); setErrors({}); setNewSubActivities([]); setNewSubLabel(''); }} id="new-activity-cancel">Cancel</Button>
+              <Button variant="outline" size="sm" onClick={() => { setAdding(false); setErrors({}); setNewSubActivities([]); setNewSubLabel(''); setNewActivitySlots([{ time: '09:00', duration: 30, days: ALL_DAYS }]); }} id="new-activity-cancel">Cancel</Button>
               <Button size="sm" onClick={createActivity} id="new-activity-submit">Create Activity</Button>
             </div>
           </div>
