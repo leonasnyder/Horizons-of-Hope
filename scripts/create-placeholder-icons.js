@@ -80,8 +80,14 @@ const iconsDir = path.join(__dirname, '../public/icons');
 if (!fs.existsSync(iconsDir)) fs.mkdirSync(iconsDir, { recursive: true });
 
 // Orange: #F97316 = rgb(249, 115, 22)
+// Only create placeholder if real icon doesn't exist (skip if logo icons are present)
 for (const size of [192, 512]) {
+  const iconPath = path.join(iconsDir, `icon-${size}.png`);
+  if (fs.existsSync(iconPath)) {
+    console.log(`icon-${size}.png already exists, skipping placeholder creation`);
+    continue;
+  }
   const png = createMinimalPNG(size, 249, 115, 22);
-  fs.writeFileSync(path.join(iconsDir, `icon-${size}.png`), png);
+  fs.writeFileSync(iconPath, png);
   console.log(`Created icon-${size}.png (${size}x${size} orange square)`);
 }
