@@ -30,26 +30,29 @@ export async function GET(req: NextRequest) {
     let entries: Record<string, unknown>[];
 
     if (date) {
-      const countResult = await sql`
-        SELECT COUNT(*) as c FROM schedule_entries WHERE date = ${date} AND removed = 0 AND user_id = ${userId}
+      const dayOfWeek = new Date(date + 'T12:00:00').getDay();
+      const allDefaults = await sql`
+        SELECT a.id as activity_id, ad.default_time, ad.default_duration, ad.days_of_week
+        FROM activities a
+        JOIN activity_defaults ad ON a.id = ad.activity_id
+        WHERE a.is_default = 1 AND a.is_archived = 0 AND a.user_id = ${userId}
+        ORDER BY ad.default_time
       `;
-      if (Number(countResult[0].c) === 0) {
-        const dayOfWeek = new Date(date + 'T12:00:00').getDay();
-        const allDefaults = await sql`
-          SELECT a.id as activity_id, ad.default_time, ad.default_duration, ad.days_of_week
-          FROM activities a
-          JOIN activity_defaults ad ON a.id = ad.activity_id
-          WHERE a.is_default = 1 AND a.is_archived = 0 AND a.user_id = ${userId}
-          ORDER BY ad.default_time
+      const defaults = (allDefaults as unknown as Array<{ activity_id: number; default_time: string; default_duration: number; days_of_week: string | null }>).filter(d => {
+        if (!d.days_of_week) return true;
+        return d.days_of_week.split(',').map(Number).includes(dayOfWeek);
+      });
+      if (defaults.length > 0) {
+        const existingActivityIds = await sql`
+          SELECT activity_id FROM schedule_entries
+          WHERE date = ${date} AND removed = 0 AND user_id = ${userId} AND activity_id IS NOT NULL
         `;
-        const defaults = (allDefaults as unknown as Array<{ activity_id: number; default_time: string; default_duration: number; days_of_week: string | null }>).filter(d => {
-          if (!d.days_of_week) return true;
-          return d.days_of_week.split(',').map(Number).includes(dayOfWeek);
-        });
-        if (defaults.length > 0) {
+        const scheduledIds = new Set((existingActivityIds as unknown as Array<{ activity_id: number }>).map(r => r.activity_id));
+        const missing = defaults.filter(d => !scheduledIds.has(d.activity_id));
+        if (missing.length > 0) {
           const weekStart = getWeekStart(new Date(date + 'T12:00:00'));
           await sql.begin(async sql => {
-            for (const d of defaults) {
+            for (const d of missing) {
               await sql`
                 INSERT INTO schedule_entries (user_id, activity_id, date, time_slot, duration_minutes)
                 VALUES (${userId}, ${d.activity_id}, ${date}, ${d.default_time}, ${d.default_duration})
@@ -72,14 +75,6 @@ export async function GET(req: NextRequest) {
         ORDER BY se.time_slot
       ` as Record<string, unknown>[];
     } else if (startDate && endDate) {
-      const existing = await sql`
-        SELECT DISTINCT date FROM schedule_entries
-        WHERE date >= ${startDate} AND date <= ${endDate} AND removed = 0 AND user_id = ${userId}
-      `;
-      const existingDates = new Set((existing as unknown as Array<{ date: string | Date }>).map(r =>
-        typeof r.date === 'string' ? r.date : r.date.toISOString().split('T')[0]
-      ));
-
       const allDefaults = await sql`
         SELECT a.id as activity_id, ad.default_time, ad.default_duration, ad.days_of_week
         FROM activities a
@@ -89,28 +84,31 @@ export async function GET(req: NextRequest) {
       ` as unknown as Array<{ activity_id: number; default_time: string; default_duration: number; days_of_week: string | null }>;
 
       if (allDefaults.length > 0) {
-        const datesToPopulate: string[] = [];
+        const existingEntries = await sql`
+          SELECT date, activity_id FROM schedule_entries
+          WHERE date >= ${startDate} AND date <= ${endDate} AND removed = 0 AND user_id = ${userId} AND activity_id IS NOT NULL
+        ` as unknown as Array<{ date: string | Date; activity_id: number }>;
+        const scheduledSet = new Set(existingEntries.map(r => {
+          const d = typeof r.date === 'string' ? r.date : r.date.toISOString().split('T')[0];
+          return `${d}:${r.activity_id}`;
+        }));
+
         const cur = new Date(startDate + 'T12:00:00');
         const end = new Date(endDate + 'T12:00:00');
-        while (cur <= end) {
-          const y = cur.getFullYear();
-          const m = String(cur.getMonth() + 1).padStart(2, '0');
-          const d = String(cur.getDate()).padStart(2, '0');
-          const dateStr = `${y}-${m}-${d}`;
-          if (!existingDates.has(dateStr)) datesToPopulate.push(dateStr);
-          cur.setDate(cur.getDate() + 1);
-        }
-
-        if (datesToPopulate.length > 0) {
-          await sql.begin(async sql => {
-            for (const dateStr of datesToPopulate) {
-              const dayOfWeek = new Date(dateStr + 'T12:00:00').getDay();
-              const dayDefaults = allDefaults.filter(d =>
-                !d.days_of_week || d.days_of_week.split(',').map(Number).includes(dayOfWeek)
-              );
-              if (dayDefaults.length === 0) continue;
+        await sql.begin(async sql => {
+          while (cur <= end) {
+            const y = cur.getFullYear();
+            const mo = String(cur.getMonth() + 1).padStart(2, '0');
+            const dy = String(cur.getDate()).padStart(2, '0');
+            const dateStr = `${y}-${mo}-${dy}`;
+            const dayOfWeek = cur.getDay();
+            const dayDefaults = allDefaults.filter(d =>
+              !d.days_of_week || d.days_of_week.split(',').map(Number).includes(dayOfWeek)
+            );
+            const missing = dayDefaults.filter(d => !scheduledSet.has(`${dateStr}:${d.activity_id}`));
+            if (missing.length > 0) {
               const weekStart = getWeekStart(new Date(dateStr + 'T12:00:00'));
-              for (const d of dayDefaults) {
+              for (const d of missing) {
                 await sql`
                   INSERT INTO schedule_entries (user_id, activity_id, date, time_slot, duration_minutes)
                   VALUES (${userId}, ${d.activity_id}, ${dateStr}, ${d.default_time}, ${d.default_duration})
@@ -122,8 +120,9 @@ export async function GET(req: NextRequest) {
                 `;
               }
             }
-          });
-        }
+            cur.setDate(cur.getDate() + 1);
+          }
+        });
       }
 
       entries = await sql`
