@@ -1,5 +1,5 @@
 'use client';
-import { Check, GripVertical, Trash2, Edit2, GripHorizontal } from 'lucide-react';
+import { Check, GripVertical, Trash2, Edit2 } from 'lucide-react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { cn, formatTime } from '@/lib/utils';
@@ -171,10 +171,10 @@ export default function ActivityCard({
         </div>
       )}
 
-      {/* Resize handle — drag bottom edge to change duration */}
+      {/* Resize handle — always visible bar at the bottom */}
       {!readOnly && onResizeStart && (
         <div
-          className="absolute bottom-0 left-0 right-0 h-4 flex items-end justify-center pb-0.5 cursor-ns-resize opacity-0 group-hover:opacity-100 transition-opacity"
+          className="absolute bottom-0 left-0 right-0 h-5 flex items-center justify-center cursor-ns-resize touch-none"
           onPointerDown={e => {
             e.stopPropagation();
             e.preventDefault();
@@ -182,7 +182,7 @@ export default function ActivityCard({
           }}
           aria-label="Drag to resize duration"
         >
-          <GripHorizontal className="h-3 w-3 text-gray-400" />
+          <div className="w-10 h-1.5 rounded-full bg-gray-300 dark:bg-gray-600" />
         </div>
       )}
     </div>
