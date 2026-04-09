@@ -16,7 +16,7 @@ export default function SignupPage() {
     setLoading(true);
     setError(null);
     const supabase = createSupabaseBrowserClient();
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
@@ -26,7 +26,11 @@ export default function SignupPage() {
     if (error) {
       setError(error.message);
       setLoading(false);
+    } else if (data.session) {
+      // Email confirmation is disabled — user is already signed in
+      router.push('/scheduler');
     } else {
+      // Email confirmation is enabled — ask them to check their inbox
       setSuccess(true);
       setLoading(false);
     }
