@@ -63,7 +63,15 @@ export default function SettingsPage() {
 
   const requestNotifications = async () => {
     if (!('Notification' in window)) {
-      toast.error('Notifications not supported in this browser');
+      // On iOS, Notification API only exists when running as a home screen PWA
+      const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+      const isStandalone = ('standalone' in navigator && (navigator as { standalone?: boolean }).standalone) ||
+        window.matchMedia('(display-mode: standalone)').matches;
+      if (isIOS && !isStandalone) {
+        toast.error('Open the app from your Home Screen icon to enable notifications', { duration: 5000 });
+      } else {
+        toast.error('Notifications are not supported in this browser');
+      }
       return;
     }
     const perm = await Notification.requestPermission();
@@ -72,7 +80,7 @@ export default function SettingsPage() {
       await saveSetting('notifications_enabled', 'true');
       toast.success('Notifications enabled!');
     } else {
-      toast.error('Notification permission denied');
+      toast.error('Notification permission denied. Check Settings → Notifications to allow them.');
     }
   };
 
@@ -164,7 +172,7 @@ export default function SettingsPage() {
           )}
 
           <p className="text-xs text-gray-400 bg-blue-50 dark:bg-blue-950 p-3 rounded-lg">
-            💡 <strong>On iPad/iPhone:</strong> For best results, tap Share → Add to Home Screen. Notifications only fire while the app is open.
+            💡 <strong>iPhone/iPad:</strong> Notifications require the app to be added to your Home Screen and opened from there — not from Safari. Tap Share → Add to Home Screen, then reopen the app and enable reminders.
           </p>
         </CardContent>
       </Card>
