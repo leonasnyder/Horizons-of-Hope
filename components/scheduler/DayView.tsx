@@ -5,7 +5,7 @@ import {
   useSensor, useSensors, closestCenter, useDroppable
 } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
-import { Plus, Printer, Loader2, RefreshCw, AlertTriangle, Undo2 } from 'lucide-react';
+import { Plus, Printer, Loader2, RefreshCw, AlertTriangle, Undo2, Lock, Pencil } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { toast } from 'sonner';
 import { useReactToPrint } from 'react-to-print';
@@ -17,6 +17,9 @@ import PrintDayView from './PrintDayView';
 import { Button } from '@/components/ui/button';
 import { formatTime } from '@/lib/utils';
 import { ExportDayDocButton } from '@/components/shared/ExportButtons';
+import {
+  Dialog, DialogContent, DialogHeader, DialogFooter, DialogTitle, DialogDescription,
+} from '@/components/ui/dialog';
 
 interface ScheduleEntry {
   id: number;
@@ -72,10 +75,16 @@ export default function DayView({ date, onReset }: DayViewProps) {
   const [loading, setLoading] = useState(true);
   const [editingEntry, setEditingEntry] = useState<ScheduleEntry | null>(null);
   const [addingToSlot, setAddingToSlot] = useState<string | null>(null);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
   const printRef = useRef<HTMLDivElement>(null);
   const historyRef = useRef<ScheduleEntry[][]>([]);
   const [canUndo, setCanUndo] = useState(false);
   const MAX_HISTORY = 10;
+
+  const today = new Date().toISOString().slice(0, 10);
+  const isPastDay = date < today;
+  const [isEditingPast, setIsEditingPast] = useState(false);
+  const isLocked = isPastDay && !isEditingPast;
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -278,8 +287,12 @@ export default function DayView({ date, onReset }: DayViewProps) {
     await handleUpdateWithCascade(draggedEntry.id, { time_slot: targetTimeSlot });
   }, [entries, handleUpdateWithCascade]);
 
-  const handleResetToDefaults = useCallback(async () => {
-    if (!window.confirm('Reset this day to default activities? All current entries for this day will be removed.')) return;
+  const handleResetToDefaults = useCallback(() => {
+    setShowResetConfirm(true);
+  }, []);
+
+  const confirmReset = useCallback(async () => {
+    setShowResetConfirm(false);
     try {
       const res = await fetch(`/api/schedule?date=${date}`, { method: 'DELETE' });
       if (!res.ok) throw new Error();
@@ -349,21 +362,44 @@ export default function DayView({ date, onReset }: DayViewProps) {
           {format(parseISO(date), 'EEEE, MMMM d')}
         </h2>
         <div className="flex gap-2 flex-wrap">
-          <Button id="day-view-undo" variant="outline" size="sm" onClick={handleUndo} disabled={!canUndo}>
-            <Undo2 className="h-4 w-4 mr-1" /> Undo
-          </Button>
-          <Button id="day-view-reset" variant="outline" size="sm" onClick={handleResetToDefaults}>
-            <RefreshCw className="h-4 w-4 mr-1" /> Reset to Defaults
-          </Button>
+          {!isLocked && (
+            <>
+              <Button id="day-view-undo" variant="outline" size="sm" onClick={handleUndo} disabled={!canUndo}>
+                <Undo2 className="h-4 w-4 mr-1" /> Undo
+              </Button>
+              <Button id="day-view-reset" variant="outline" size="sm" onClick={handleResetToDefaults}>
+                <RefreshCw className="h-4 w-4 mr-1" /> Reset to Defaults
+              </Button>
+            </>
+          )}
           <Button id="day-view-print" variant="outline" size="sm" onClick={handlePrint}>
             <Printer className="h-4 w-4 mr-1" /> Print Day
           </Button>
           <ExportDayDocButton date={date} entries={entries} />
-          <Button id="day-view-add" size="sm" onClick={() => setAddingToSlot('08:00')}>
-            <Plus className="h-4 w-4 mr-1" /> Add Activity
-          </Button>
+          {!isLocked && (
+            <Button id="day-view-add" size="sm" onClick={() => setAddingToSlot('08:00')}>
+              <Plus className="h-4 w-4 mr-1" /> Add Activity
+            </Button>
+          )}
         </div>
       </div>
+
+      {isLocked && (
+        <div className="mb-3 p-3 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2 text-sm text-blue-800 dark:text-blue-300">
+            <Lock className="h-4 w-4 flex-shrink-0" />
+            <span>This is a past day. The schedule is read-only — use the edit button on any activity to make changes.</span>
+          </div>
+          <Button
+            size="sm"
+            variant="outline"
+            className="flex-shrink-0 border-blue-300 text-blue-700 hover:bg-blue-100 dark:border-blue-600 dark:text-blue-300 dark:hover:bg-blue-900/40"
+            onClick={() => setIsEditingPast(true)}
+          >
+            <Pencil className="h-3.5 w-3.5 mr-1" /> Edit This Day
+          </Button>
+        </div>
+      )}
 
       {(hiddenEntries.length > 0 || overlappedEntries.length > 0) && (
         <div className="mb-3 p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 flex items-start gap-2">
@@ -435,6 +471,7 @@ export default function DayView({ date, onReset }: DayViewProps) {
                       <ActivityCard
                         entry={seg.entry}
                         cardMinHeight={slotHeight}
+                        readOnly={isLocked}
                         onUpdate={handleUpdate}
                         onRemove={handleRemove}
                         onEdit={setEditingEntry}
@@ -536,6 +573,21 @@ export default function DayView({ date, onReset }: DayViewProps) {
           }}
         />
       )}
+
+      <Dialog open={showResetConfirm} onOpenChange={setShowResetConfirm}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Reset to Defaults?</DialogTitle>
+            <DialogDescription>
+              This will erase all activities currently on the schedule for this day and replace them with your default activities. This cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowResetConfirm(false)}>Cancel</Button>
+            <Button variant="destructive" onClick={confirmReset}>Yes, Reset Day</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -35,13 +35,14 @@ interface ScheduleEntryForCard {
 interface ActivityCardProps {
   entry: ScheduleEntryForCard;
   cardMinHeight?: number;
+  readOnly?: boolean;
   onUpdate: (id: number, data: Record<string, unknown>) => Promise<void>;
   onRemove: (id: number) => Promise<void>;
   onEdit: (entry: ScheduleEntryForCard) => void;
   onToggleSubActivity: (entryId: number, entrySubActivityId: number, completed: number) => Promise<void>;
 }
 
-export default function ActivityCard({ entry, cardMinHeight, onUpdate, onRemove, onEdit, onToggleSubActivity }: ActivityCardProps) {
+export default function ActivityCard({ entry, cardMinHeight, readOnly, onUpdate, onRemove, onEdit, onToggleSubActivity }: ActivityCardProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: entry.id });
 
@@ -71,23 +72,27 @@ export default function ActivityCard({ entry, cardMinHeight, onUpdate, onRemove,
     >
       {/* Top row: drag handle, complete button, name/time, edit/delete */}
       <div className="flex items-start gap-2">
-        <button
-          {...listeners}
-          {...attributes}
-          className="cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-500 touch-none flex items-center justify-center min-w-[32px] min-h-[44px]"
-          aria-label="Drag to reorder"
-        >
-          <GripVertical className="h-4 w-4" />
-        </button>
+        {!readOnly && (
+          <button
+            {...listeners}
+            {...attributes}
+            className="cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-500 touch-none flex items-center justify-center min-w-[32px] min-h-[44px]"
+            aria-label="Drag to reorder"
+          >
+            <GripVertical className="h-4 w-4" />
+          </button>
+        )}
 
         <button
           id={`activity-card-complete-${entry.id}`}
-          onClick={handleComplete}
+          onClick={readOnly ? undefined : handleComplete}
+          disabled={readOnly}
           className={cn(
             'w-11 h-11 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors mt-0.5',
             entry.is_completed
               ? 'bg-green-500 border-green-500 text-white'
-              : 'border-gray-300 hover:border-green-400'
+              : 'border-gray-300 hover:border-green-400',
+            readOnly && 'cursor-default'
           )}
           aria-label={entry.is_completed ? 'Mark incomplete' : 'Mark complete'}
           aria-pressed={!!entry.is_completed}
@@ -124,14 +129,16 @@ export default function ActivityCard({ entry, cardMinHeight, onUpdate, onRemove,
           >
             <Edit2 className="h-4 w-4 text-gray-500" />
           </button>
-          <button
-            id={`activity-card-remove-${entry.id}`}
-            onClick={handleRemove}
-            className="p-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900 min-w-[44px] min-h-[44px] flex items-center justify-center"
-            aria-label={`Remove ${entry.activity_name}`}
-          >
-            <Trash2 className="h-4 w-4 text-red-400" />
-          </button>
+          {!readOnly && (
+            <button
+              id={`activity-card-remove-${entry.id}`}
+              onClick={handleRemove}
+              className="p-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900 min-w-[44px] min-h-[44px] flex items-center justify-center"
+              aria-label={`Remove ${entry.activity_name}`}
+            >
+              <Trash2 className="h-4 w-4 text-red-400" />
+            </button>
+          )}
         </div>
       </div>
 
