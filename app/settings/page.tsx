@@ -65,9 +65,8 @@ export default function SettingsPage() {
     if (!('Notification' in window)) {
       // On iOS, Notification API only exists when running as a home screen PWA
       const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
-      const isStandalone = ('standalone' in navigator && (navigator as { standalone?: boolean }).standalone) ||
-        window.matchMedia('(display-mode: standalone)').matches;
-      if (isIOS && !isStandalone) {
+      const isIOSStandalone = 'standalone' in navigator && (navigator as { standalone?: boolean }).standalone === true;
+      if (isIOS && !isIOSStandalone) {
         toast.error('Open the app from your Home Screen icon to enable notifications', { duration: 5000 });
       } else {
         toast.error('Notifications are not supported in this browser');
