@@ -76,6 +76,9 @@ export default function DayView({ date, onReset }: DayViewProps) {
   const [editingEntry, setEditingEntry] = useState<ScheduleEntry | null>(null);
   const [addingToSlot, setAddingToSlot] = useState<string | null>(null);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [resizing, setResizing] = useState<{
+    entryId: number; initialY: number; initialDuration: number; currentDuration: number;
+  } | null>(null);
   const printRef = useRef<HTMLDivElement>(null);
   const historyRef = useRef<ScheduleEntry[][]>([]);
   const [canUndo, setCanUndo] = useState(false);
@@ -228,6 +231,33 @@ export default function DayView({ date, onReset }: DayViewProps) {
       toast.error('Failed to update activity');
     }
   }, [date, handleUpdate, fetchEntries, pushHistory, entries]);
+
+  const handleResizeStart = useCallback((entryId: number, initialY: number, initialDuration: number) => {
+    setResizing({ entryId, initialY, initialDuration, currentDuration: initialDuration });
+  }, []);
+
+  useEffect(() => {
+    if (!resizing) return;
+    const onMove = (e: PointerEvent) => {
+      const deltaY = e.clientY - resizing.initialY;
+      const deltaSlots = Math.round(deltaY / SLOT_HEIGHT_PX);
+      const newDuration = Math.max(SLOT_INTERVAL_MIN, resizing.initialDuration + deltaSlots * SLOT_INTERVAL_MIN);
+      setResizing(prev => prev ? { ...prev, currentDuration: newDuration } : null);
+    };
+    const onUp = async () => {
+      const snap = resizing;
+      setResizing(null);
+      if (snap.currentDuration !== snap.initialDuration) {
+        await handleUpdateWithCascade(snap.entryId, { duration_minutes: snap.currentDuration });
+      }
+    };
+    document.addEventListener('pointermove', onMove);
+    document.addEventListener('pointerup', onUp);
+    return () => {
+      document.removeEventListener('pointermove', onMove);
+      document.removeEventListener('pointerup', onUp);
+    };
+  }, [resizing, handleUpdateWithCascade]);
 
   const handleRemove = useCallback(async (id: number) => {
     pushHistory(entries);
@@ -436,7 +466,10 @@ export default function DayView({ date, onReset }: DayViewProps) {
                   return { i, isHour: m === 0, isHalf: m === 30, m, timeStr };
                 });
 
-                const slotHeight = seg.spanSlots * SLOT_HEIGHT_PX;
+                const displaySlots = resizing?.entryId === seg.entry.id
+                  ? Math.max(1, Math.round(resizing.currentDuration / SLOT_INTERVAL_MIN))
+                  : seg.spanSlots;
+                const slotHeight = displaySlots * SLOT_HEIGHT_PX;
 
                 return (
                   <div
@@ -473,11 +506,13 @@ export default function DayView({ date, onReset }: DayViewProps) {
                       <ActivityCard
                         entry={seg.entry}
                         cardMinHeight={slotHeight}
+                        displayDuration={resizing?.entryId === seg.entry.id ? resizing.currentDuration : undefined}
                         readOnly={isLocked}
                         onUpdate={handleUpdate}
                         onRemove={handleRemove}
                         onEdit={setEditingEntry}
                         onToggleSubActivity={handleToggleSubActivity}
+                        onResizeStart={isLocked ? undefined : handleResizeStart}
                       />
                     </div>
                   </div>

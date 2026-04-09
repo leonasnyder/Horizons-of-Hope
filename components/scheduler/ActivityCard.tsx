@@ -1,5 +1,5 @@
 'use client';
-import { Check, GripVertical, Trash2, Edit2 } from 'lucide-react';
+import { Check, GripVertical, Trash2, Edit2, GripHorizontal } from 'lucide-react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { cn, formatTime } from '@/lib/utils';
@@ -35,14 +35,19 @@ interface ScheduleEntryForCard {
 interface ActivityCardProps {
   entry: ScheduleEntryForCard;
   cardMinHeight?: number;
+  displayDuration?: number;
   readOnly?: boolean;
   onUpdate: (id: number, data: Record<string, unknown>) => Promise<void>;
   onRemove: (id: number) => Promise<void>;
   onEdit: (entry: ScheduleEntryForCard) => void;
   onToggleSubActivity: (entryId: number, entrySubActivityId: number, completed: number) => Promise<void>;
+  onResizeStart?: (id: number, initialY: number, initialDuration: number) => void;
 }
 
-export default function ActivityCard({ entry, cardMinHeight, readOnly, onUpdate, onRemove, onEdit, onToggleSubActivity }: ActivityCardProps) {
+export default function ActivityCard({
+  entry, cardMinHeight, displayDuration, readOnly,
+  onUpdate, onRemove, onEdit, onToggleSubActivity, onResizeStart,
+}: ActivityCardProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: entry.id });
 
@@ -50,6 +55,8 @@ export default function ActivityCard({ entry, cardMinHeight, readOnly, onUpdate,
     transform: CSS.Transform.toString(transform),
     transition,
   };
+
+  const shownDuration = displayDuration ?? entry.duration_minutes;
 
   const handleComplete = async () => {
     await onUpdate(entry.id, { is_completed: entry.is_completed ? 0 : 1 });
@@ -62,7 +69,7 @@ export default function ActivityCard({ entry, cardMinHeight, readOnly, onUpdate,
   return (
     <div ref={setNodeRef} style={style} id={`activity-card-${entry.id}`}>
     <div
-      style={cardMinHeight ? { minHeight: `${cardMinHeight}px`, overflow: 'visible' } : undefined}
+      style={cardMinHeight ? { minHeight: `${cardMinHeight}px`, overflow: 'visible', position: 'relative' } : { position: 'relative' }}
       className={cn(
         'flex flex-col gap-1 p-3 rounded-lg border bg-white dark:bg-gray-800 shadow-sm group',
         isDragging && 'opacity-50 shadow-lg z-50',
@@ -114,7 +121,7 @@ export default function ActivityCard({ entry, cardMinHeight, readOnly, onUpdate,
             )}
           </div>
           <div className="text-xs text-gray-500 mt-0.5">
-            {formatTime(entry.time_slot)} · {entry.duration_minutes} min
+            {formatTime(entry.time_slot)} · {shownDuration} min
             {entry.notes && <span className="ml-2 italic break-words">{entry.notes}</span>}
           </div>
         </div>
@@ -161,6 +168,21 @@ export default function ActivityCard({ entry, cardMinHeight, readOnly, onUpdate,
               </span>
             </label>
           ))}
+        </div>
+      )}
+
+      {/* Resize handle — drag bottom edge to change duration */}
+      {!readOnly && onResizeStart && (
+        <div
+          className="absolute bottom-0 left-0 right-0 h-4 flex items-end justify-center pb-0.5 cursor-ns-resize opacity-0 group-hover:opacity-100 transition-opacity"
+          onPointerDown={e => {
+            e.stopPropagation();
+            e.preventDefault();
+            onResizeStart(entry.id, e.clientY, entry.duration_minutes);
+          }}
+          aria-label="Drag to resize duration"
+        >
+          <GripHorizontal className="h-3 w-3 text-gray-400" />
         </div>
       )}
     </div>
