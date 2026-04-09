@@ -39,10 +39,14 @@ interface DayViewProps {
   onReset?: () => void;
 }
 
-const DAY_START_HOUR = 7;
-const DAY_END_HOUR = 22;
 const SLOT_INTERVAL_MIN = 15;
 const SLOT_HEIGHT_PX = 24; // minimum px per 15-minute slot row
+
+function parseHour(timeStr: string | undefined, fallback: number): number {
+  if (!timeStr) return fallback;
+  const [h] = timeStr.split(':').map(Number);
+  return isNaN(h) ? fallback : h;
+}
 
 function timeToMinutes(timeStr: string): number {
   const [h, m] = timeStr.split(':').map(Number);
@@ -56,9 +60,7 @@ function minutesToSlot(totalMinutes: number): string {
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 }
 
-const DAY_START_MIN = DAY_START_HOUR * 60;
-const DAY_END_MIN = DAY_END_HOUR * 60;
-const TOTAL_SLOTS = (DAY_END_MIN - DAY_START_MIN) / SLOT_INTERVAL_MIN;
+// These are computed dynamically inside the component from user settings
 
 
 function DroppableSlot({ id, children }: { id: string; children: React.ReactNode }) {
@@ -73,6 +75,8 @@ function DroppableSlot({ id, children }: { id: string; children: React.ReactNode
 export default function DayView({ date, onReset }: DayViewProps) {
   const [entries, setEntries] = useState<ScheduleEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [scheduleStart, setScheduleStart] = useState('07:00');
+  const [scheduleEnd, setScheduleEnd] = useState('22:00');
   const [editingEntry, setEditingEntry] = useState<ScheduleEntry | null>(null);
   const [addingToSlot, setAddingToSlot] = useState<string | null>(null);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
@@ -108,6 +112,16 @@ export default function DayView({ date, onReset }: DayViewProps) {
   }, [date]);
 
   useEffect(() => { fetchEntries(); }, [fetchEntries]);
+
+  useEffect(() => {
+    fetch('/api/settings')
+      .then(r => r.json())
+      .then(s => {
+        if (s.schedule_start) setScheduleStart(s.schedule_start);
+        if (s.schedule_end) setScheduleEnd(s.schedule_end);
+      })
+      .catch(() => {});
+  }, []);
 
   const pushHistory = useCallback((snapshot: ScheduleEntry[]) => {
     historyRef.current = [...historyRef.current.slice(-(MAX_HISTORY - 1)), [...snapshot]];
@@ -340,6 +354,11 @@ export default function DayView({ date, onReset }: DayViewProps) {
     content: () => printRef.current,
     documentTitle: `Schedule-${date}`,
   });
+
+  // Compute time range from user settings
+  const DAY_START_MIN = parseHour(scheduleStart, 7) * 60;
+  const DAY_END_MIN = parseHour(scheduleEnd, 22) * 60;
+  const TOTAL_SLOTS = Math.max(1, (DAY_END_MIN - DAY_START_MIN) / SLOT_INTERVAL_MIN);
 
   // Build timeline segments: one per activity (spanning its slots) or one per empty slot
   type Segment =
