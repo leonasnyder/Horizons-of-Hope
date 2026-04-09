@@ -56,7 +56,6 @@ export default function ActivityCard({ entry, cardMinHeight, readOnly, onUpdate,
   };
 
   const handleRemove = async () => {
-    if (!window.confirm(`Remove "${entry.activity_name}" from today's schedule?`)) return;
     await onRemove(entry.id);
   };
 
