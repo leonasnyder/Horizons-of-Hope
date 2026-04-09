@@ -1,8 +1,9 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { Plus, Archive, Search, RotateCcw, Tags, Edit2, Trash2, X } from 'lucide-react';
+import { Plus, Archive, Search, RotateCcw, Tags, Edit2, Trash2, X, BookOpen } from 'lucide-react';
 import CategoryManager from './CategoryManager';
 import ActivityEditPanel from './ActivityEditPanel';
+import TaskLibraryPicker from './TaskLibraryPicker';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -47,6 +48,7 @@ export default function ActivityManager({ open, onClose }: ActivityManagerProps)
   ]);
   const [newSubActivities, setNewSubActivities] = useState<string[]>([]);
   const [newSubLabel, setNewSubLabel] = useState('');
+  const [showNewLibrary, setShowNewLibrary] = useState(false);
   const [confirmDialog, setConfirmDialog] = useState<{
     title: string; message: string; onConfirm: () => void;
   } | null>(null);
@@ -361,7 +363,35 @@ export default function ActivityManager({ open, onClose }: ActivityManagerProps)
               </div>
             </div>
             <div>
-              <p className="text-xs font-semibold text-gray-600 dark:text-gray-400 mb-2">Sub-activities</p>
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-xs font-semibold text-gray-600 dark:text-gray-400">Sub-activities</p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowNewLibrary(v => !v)}
+                  className="h-7 text-xs gap-1"
+                >
+                  <BookOpen className="h-3.5 w-3.5" />
+                  {showNewLibrary ? 'Hide Library' : 'Browse Library'}
+                </Button>
+              </div>
+              {showNewLibrary && (
+                <div className="mb-3">
+                  <TaskLibraryPicker
+                    selectedLabels={newSubActivities}
+                    onAdd={label => {
+                      if (!newSubActivities.some(l => l.toLowerCase() === label.toLowerCase())) {
+                        setNewSubActivities(prev => [...prev, label]);
+                      }
+                    }}
+                    onRemove={label => {
+                      setNewSubActivities(prev => prev.filter(l => l.toLowerCase() !== label.toLowerCase()));
+                    }}
+                    onClose={() => setShowNewLibrary(false)}
+                  />
+                </div>
+              )}
               {newSubActivities.length > 0 && (
                 <div className="space-y-1 mb-2">
                   {newSubActivities.map((label, i) => (

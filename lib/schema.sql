@@ -98,6 +98,21 @@ CREATE TABLE IF NOT EXISTS schedule_entry_sub_activities (
   completed INTEGER DEFAULT 0
 );
 
+CREATE TABLE IF NOT EXISTS task_library_categories (
+  id SERIAL PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  name TEXT NOT NULL,
+  sort_order INTEGER DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS task_library_items (
+  id SERIAL PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  category_id INTEGER NOT NULL REFERENCES task_library_categories(id) ON DELETE CASCADE,
+  label TEXT NOT NULL,
+  sort_order INTEGER DEFAULT 0
+);
+
 -- ============================================================
 -- Seed data (only inserts if tables are empty)
 -- ============================================================

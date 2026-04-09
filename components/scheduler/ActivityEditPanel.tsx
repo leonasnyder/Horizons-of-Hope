@@ -1,11 +1,12 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { Plus, X, Trash2 } from 'lucide-react';
+import { Plus, X, Trash2, BookOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
+import TaskLibraryPicker from './TaskLibraryPicker';
 
 interface Category { id: number; name: string; color: string; }
 interface SubActivity { id: number; label: string; sort_order: number; }
@@ -59,6 +60,7 @@ export default function ActivityEditPanel({
   const [subActivities, setSubActivities] = useState<SubActivity[]>([]);
   const [newSubLabel, setNewSubLabel] = useState('');
   const [saving, setSaving] = useState(false);
+  const [showLibrary, setShowLibrary] = useState(false);
   const [isDefault, setIsDefault] = useState(false);
 
   // Multiple time slots
@@ -171,6 +173,27 @@ export default function ActivityEditPanel({
     } catch {
       toast.error('Failed to remove sub-activity');
     }
+  };
+
+  const addFromLibrary = async (label: string) => {
+    if (subActivities.some(s => s.label.toLowerCase() === label.toLowerCase())) return;
+    try {
+      const res = await fetch(`/api/activities/${activityId}/sub-activities`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ label }),
+      });
+      if (!res.ok) throw new Error();
+      const newSub = await res.json() as SubActivity;
+      setSubActivities(prev => [...prev, newSub]);
+    } catch {
+      toast.error('Failed to add sub-activity');
+    }
+  };
+
+  const removeFromLibrary = async (label: string) => {
+    const sub = subActivities.find(s => s.label.toLowerCase() === label.toLowerCase());
+    if (sub) await removeSubActivity(sub.id);
   };
 
   return (
@@ -334,9 +357,31 @@ export default function ActivityEditPanel({
 
       {/* Sub-activities */}
       <div>
-        <p id={`edit-subactivities-label-${activityId}`} className="text-xs font-semibold text-gray-600 dark:text-gray-400 mb-2">
-          Sub-activities
-        </p>
+        <div className="flex items-center justify-between mb-2">
+          <p id={`edit-subactivities-label-${activityId}`} className="text-xs font-semibold text-gray-600 dark:text-gray-400">
+            Sub-activities
+          </p>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setShowLibrary(v => !v)}
+            className="h-7 text-xs gap-1"
+          >
+            <BookOpen className="h-3.5 w-3.5" />
+            {showLibrary ? 'Hide Library' : 'Browse Library'}
+          </Button>
+        </div>
+        {showLibrary && (
+          <div className="mb-3">
+            <TaskLibraryPicker
+              selectedLabels={subActivities.map(s => s.label)}
+              onAdd={addFromLibrary}
+              onRemove={removeFromLibrary}
+              onClose={() => setShowLibrary(false)}
+            />
+          </div>
+        )}
         {subActivities.length > 0 && (
           <div id={`edit-subactivities-list-${activityId}`} className="space-y-1 mb-2">
             {subActivities.map(s => (

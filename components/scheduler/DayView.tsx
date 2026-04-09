@@ -40,7 +40,7 @@ interface DayViewProps {
 }
 
 const DAY_START_HOUR = 7;
-const DAY_END_HOUR = 20;
+const DAY_END_HOUR = 22;
 const SLOT_INTERVAL_MIN = 15;
 const SLOT_HEIGHT_PX = 24; // minimum px per 15-minute slot row
 
