@@ -121,7 +121,14 @@ export default function ActivityCard({
             )}
           </div>
           <div className="text-xs text-gray-500 mt-0.5">
-            {formatTime(entry.time_slot)} · {shownDuration} min
+            {(() => {
+              const [h, m] = entry.time_slot.split(':').map(Number);
+              const endMin = h * 60 + m + shownDuration;
+              const eh = Math.floor(endMin / 60) % 24;
+              const em = endMin % 60;
+              const endSlot = `${String(eh).padStart(2, '0')}:${String(em).padStart(2, '0')}`;
+              return `${formatTime(entry.time_slot)} – ${formatTime(endSlot)} · ${shownDuration} min`;
+            })()}
             {entry.notes && <span className="ml-2 italic break-words">{entry.notes}</span>}
           </div>
         </div>
