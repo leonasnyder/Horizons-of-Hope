@@ -61,6 +61,21 @@ export default function SettingsPage() {
     }
   };
 
+  const sendTestNotification = () => {
+    if (!('Notification' in window) || Notification.permission !== 'granted') {
+      toast.error('Enable notifications first');
+      return;
+    }
+    toast.info('Test notification in 5 seconds…');
+    setTimeout(() => {
+      new Notification('⏰ Test Reminder', {
+        body: 'Notifications are working! 🎉',
+        icon: '/icons/icon-192.png',
+        silent: false,
+      });
+    }, 5000);
+  };
+
   const requestNotifications = async () => {
     if (!('Notification' in window)) {
       // On iOS, Notification API only exists when running as a home screen PWA
@@ -168,6 +183,12 @@ export default function SettingsPage() {
                 </SelectContent>
               </Select>
             </div>
+          )}
+
+          {notifPermission === 'granted' && (
+            <Button id="settings-notif-test" variant="outline" size="sm" onClick={sendTestNotification}>
+              Send Test Notification (5 sec delay)
+            </Button>
           )}
 
           <p className="text-xs text-gray-400 bg-blue-50 dark:bg-blue-950 p-3 rounded-lg">

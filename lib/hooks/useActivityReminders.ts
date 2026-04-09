@@ -64,8 +64,8 @@ export function useActivityReminders() {
 
           timeoutsRef.current.push(id);
         }
-      } catch {
-        // Silently fail — notifications are best-effort
+      } catch (e) {
+        console.warn('[ActivityReminders] Failed to schedule reminders:', e);
       }
     }
 
