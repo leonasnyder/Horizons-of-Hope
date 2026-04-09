@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { Plus, Archive, Search, RotateCcw, Tags, Edit2, Trash2, X } from 'lucide-react';
 import CategoryManager from './CategoryManager';
 import ActivityEditPanel from './ActivityEditPanel';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -47,6 +47,9 @@ export default function ActivityManager({ open, onClose }: ActivityManagerProps)
   ]);
   const [newSubActivities, setNewSubActivities] = useState<string[]>([]);
   const [newSubLabel, setNewSubLabel] = useState('');
+  const [confirmDialog, setConfirmDialog] = useState<{
+    title: string; message: string; onConfirm: () => void;
+  } | null>(null);
 
   const fetchActivities = () => {
     fetch('/api/activities?includeArchived=true')
@@ -84,22 +87,32 @@ export default function ActivityManager({ open, onClose }: ActivityManagerProps)
     toast.success(`${a.name} ${a.is_default ? 'removed from' : 'added to'} daily defaults`);
   };
 
-  const archiveActivity = async (a: Activity) => {
-    if (!window.confirm(`Archive "${a.name}"? It will be hidden from new schedules.`)) return;
-    await fetch(`/api/activities/${a.id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ is_archived: 1 }),
+  const archiveActivity = (a: Activity) => {
+    setConfirmDialog({
+      title: `Archive "${a.name}"?`,
+      message: 'It will be hidden from new schedules but can be restored later.',
+      onConfirm: async () => {
+        await fetch(`/api/activities/${a.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ is_archived: 1 }),
+        });
+        fetchActivities();
+        toast.success(`${a.name} archived`);
+      },
     });
-    fetchActivities();
-    toast.success(`${a.name} archived`);
   };
 
-  const deleteActivity = async (a: Activity) => {
-    if (!window.confirm(`Permanently delete "${a.name}"? This cannot be undone.`)) return;
-    await fetch(`/api/activities/${a.id}`, { method: 'DELETE' });
-    fetchActivities();
-    toast.success(`${a.name} deleted`);
+  const deleteActivity = (a: Activity) => {
+    setConfirmDialog({
+      title: `Delete "${a.name}"?`,
+      message: 'This will permanently delete the activity and cannot be undone.',
+      onConfirm: async () => {
+        await fetch(`/api/activities/${a.id}`, { method: 'DELETE' });
+        fetchActivities();
+        toast.success(`${a.name} deleted`);
+      },
+    });
   };
 
   const unarchiveActivity = async (a: Activity) => {
@@ -508,6 +521,19 @@ export default function ActivityManager({ open, onClose }: ActivityManagerProps)
       onClose={() => setCategoryManagerOpen(false)}
       onChanged={fetchCategories}
     />
+
+    <Dialog open={!!confirmDialog} onOpenChange={() => setConfirmDialog(null)}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{confirmDialog?.title}</DialogTitle>
+          <DialogDescription>{confirmDialog?.message}</DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setConfirmDialog(null)}>Cancel</Button>
+          <Button variant="destructive" onClick={() => { confirmDialog?.onConfirm(); setConfirmDialog(null); }}>Confirm</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   </>
   );
 }
