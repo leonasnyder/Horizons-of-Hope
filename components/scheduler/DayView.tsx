@@ -5,7 +5,7 @@ import {
   useSensor, useSensors, closestCenter, useDroppable
 } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
-import { Plus, Printer, Loader2, RefreshCw, AlertTriangle } from 'lucide-react';
+import { Plus, Printer, Loader2, RefreshCw, AlertTriangle, Undo2 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { toast } from 'sonner';
 import { useReactToPrint } from 'react-to-print';
@@ -73,6 +73,9 @@ export default function DayView({ date, onReset }: DayViewProps) {
   const [editingEntry, setEditingEntry] = useState<ScheduleEntry | null>(null);
   const [addingToSlot, setAddingToSlot] = useState<string | null>(null);
   const printRef = useRef<HTMLDivElement>(null);
+  const historyRef = useRef<ScheduleEntry[][]>([]);
+  const [canUndo, setCanUndo] = useState(false);
+  const MAX_HISTORY = 10;
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -94,7 +97,65 @@ export default function DayView({ date, onReset }: DayViewProps) {
 
   useEffect(() => { fetchEntries(); }, [fetchEntries]);
 
+  const pushHistory = useCallback((snapshot: ScheduleEntry[]) => {
+    historyRef.current = [...historyRef.current.slice(-(MAX_HISTORY - 1)), [...snapshot]];
+    setCanUndo(true);
+  }, [MAX_HISTORY]);
+
+  const handleUndo = useCallback(async () => {
+    if (historyRef.current.length === 0) return;
+    const previousEntries = historyRef.current[historyRef.current.length - 1];
+    historyRef.current = historyRef.current.slice(0, -1);
+    if (historyRef.current.length === 0) setCanUndo(false);
+
+    try {
+      const currentEntries = await fetch(`/api/schedule?date=${date}`).then(r => r.json()) as ScheduleEntry[];
+
+      const updates: Promise<Response>[] = [];
+
+      // Restore changed entries
+      for (const prev of previousEntries) {
+        const curr = currentEntries.find(e => e.id === prev.id);
+        if (curr && (curr.time_slot !== prev.time_slot || curr.duration_minutes !== prev.duration_minutes)) {
+          updates.push(fetch(`/api/schedule/${prev.id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ time_slot: prev.time_slot, duration_minutes: prev.duration_minutes }),
+          }));
+        }
+        // Restore removed entries
+        if (!curr) {
+          updates.push(fetch('/api/schedule', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              activity_id: prev.activity_id,
+              date,
+              time_slot: prev.time_slot,
+              duration_minutes: prev.duration_minutes,
+              notes: prev.notes,
+            }),
+          }));
+        }
+      }
+
+      // Remove entries that were added after the snapshot
+      for (const curr of currentEntries) {
+        if (!previousEntries.find(e => e.id === curr.id)) {
+          updates.push(fetch(`/api/schedule/${curr.id}`, { method: 'DELETE' }));
+        }
+      }
+
+      await Promise.all(updates);
+      await fetchEntries();
+      toast.success('Undone');
+    } catch {
+      toast.error('Failed to undo');
+    }
+  }, [date, fetchEntries]);
+
   const handleUpdate = useCallback(async (id: number, data: Record<string, unknown>) => {
+    pushHistory(entries);
     try {
       const res = await fetch(`/api/schedule/${id}`, {
         method: 'PATCH',
@@ -106,12 +167,13 @@ export default function DayView({ date, onReset }: DayViewProps) {
     } catch {
       toast.error('Failed to update activity');
     }
-  }, [fetchEntries]);
+  }, [fetchEntries, pushHistory, entries]);
 
   const handleUpdateWithCascade = useCallback(async (id: number, data: Record<string, unknown>) => {
     if (!('time_slot' in data) && !('duration_minutes' in data)) {
       return handleUpdate(id, data);
     }
+    pushHistory(entries);
     try {
       const res = await fetch(`/api/schedule/${id}`, {
         method: 'PATCH',
@@ -156,9 +218,10 @@ export default function DayView({ date, onReset }: DayViewProps) {
     } catch {
       toast.error('Failed to update activity');
     }
-  }, [date, handleUpdate, fetchEntries]);
+  }, [date, handleUpdate, fetchEntries, pushHistory, entries]);
 
   const handleRemove = useCallback(async (id: number) => {
+    pushHistory(entries);
     try {
       const res = await fetch(`/api/schedule/${id}`, { method: 'DELETE' });
       if (!res.ok) throw new Error();
@@ -167,7 +230,7 @@ export default function DayView({ date, onReset }: DayViewProps) {
     } catch {
       toast.error('Failed to remove activity');
     }
-  }, [fetchEntries]);
+  }, [fetchEntries, pushHistory, entries]);
 
   const handleToggleSubActivity = useCallback(async (entryId: number, entrySubActivityId: number, completed: number) => {
     setEntries(prev => prev.map(e =>
@@ -286,6 +349,9 @@ export default function DayView({ date, onReset }: DayViewProps) {
           {format(parseISO(date), 'EEEE, MMMM d')}
         </h2>
         <div className="flex gap-2 flex-wrap">
+          <Button id="day-view-undo" variant="outline" size="sm" onClick={handleUndo} disabled={!canUndo}>
+            <Undo2 className="h-4 w-4 mr-1" /> Undo
+          </Button>
           <Button id="day-view-reset" variant="outline" size="sm" onClick={handleResetToDefaults}>
             <RefreshCw className="h-4 w-4 mr-1" /> Reset to Defaults
           </Button>
