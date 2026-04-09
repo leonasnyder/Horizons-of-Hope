@@ -8,6 +8,7 @@ import WeekView from '@/components/scheduler/WeekView';
 import ActivityManager from '@/components/scheduler/ActivityManager';
 import { Button } from '@/components/ui/button';
 import { CalendarDays, Calendar, Settings2 } from 'lucide-react';
+import { useActivityReminders } from '@/lib/hooks/useActivityReminders';
 
 type ViewMode = 'day' | 'week';
 
@@ -17,6 +18,7 @@ export default function SchedulerPage() {
   const [activityManagerOpen, setActivityManagerOpen] = useState(false);
   const [weekRefreshKey, setWeekRefreshKey] = useState(0);
   const handleDayReset = useCallback(() => setWeekRefreshKey(k => k + 1), []);
+  useActivityReminders();
 
   return (
     <div id="scheduler-page" className="max-w-7xl mx-auto p-4">
