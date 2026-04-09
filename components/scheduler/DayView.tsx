@@ -81,7 +81,7 @@ export default function DayView({ date, onReset }: DayViewProps) {
   const [canUndo, setCanUndo] = useState(false);
   const MAX_HISTORY = 10;
 
-  const today = new Date().toISOString().slice(0, 10);
+  const today = format(new Date(), 'yyyy-MM-dd');
   const isPastDay = date < today;
   const [isEditingPast, setIsEditingPast] = useState(false);
   const isLocked = isPastDay && !isEditingPast;
