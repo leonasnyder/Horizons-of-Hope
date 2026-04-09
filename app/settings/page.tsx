@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect, useRef } from 'react';
 import { useTheme } from 'next-themes';
-import { Sun, Moon, Monitor, Bell, Download, Upload, Trash2, Info } from 'lucide-react';
+import { Sun, Moon, Monitor, Bell, Download, Upload, Trash2, Info, BookOpen } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
@@ -323,6 +323,25 @@ export default function SettingsPage() {
               <Upload className="h-4 w-4 mr-2" /> Import from JSON backup
             </Button>
           </div>
+
+          <Button
+            id="settings-seed-library"
+            variant="outline"
+            className="w-full justify-start"
+            onClick={async () => {
+              try {
+                const res = await fetch('/api/task-library/seed');
+                const data = await res.json();
+                if (data.success) toast.success('Task library seeded with 12 categories!');
+                else if (data.message) toast.success('Task library already set up');
+                else toast.error('Seeding failed');
+              } catch {
+                toast.error('Seeding failed');
+              }
+            }}
+          >
+            <BookOpen className="h-4 w-4 mr-2" /> Set up Task Library
+          </Button>
 
           <Button
             id="settings-clear"
