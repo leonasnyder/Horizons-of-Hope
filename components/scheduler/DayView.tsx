@@ -284,6 +284,8 @@ export default function DayView({ date, onReset }: DayViewProps) {
     }
 
     if (targetTimeSlot === draggedEntry.time_slot) return;
+    // Optimistic update so the time label changes immediately
+    setEntries(prev => prev.map(e => e.id === draggedEntry.id ? { ...e, time_slot: targetTimeSlot } : e));
     await handleUpdateWithCascade(draggedEntry.id, { time_slot: targetTimeSlot });
   }, [entries, handleUpdateWithCascade]);
 

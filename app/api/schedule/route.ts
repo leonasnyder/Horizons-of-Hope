@@ -45,7 +45,7 @@ export async function GET(req: NextRequest) {
       if (defaults.length > 0) {
         const existingActivityIds = await sql`
           SELECT activity_id FROM schedule_entries
-          WHERE date = ${date} AND removed = 0 AND user_id = ${userId} AND activity_id IS NOT NULL
+          WHERE date = ${date} AND user_id = ${userId} AND activity_id IS NOT NULL
         `;
         const scheduledIds = new Set((existingActivityIds as unknown as Array<{ activity_id: number }>).map(r => r.activity_id));
         const missing = defaults.filter(d => !scheduledIds.has(d.activity_id));
@@ -86,7 +86,7 @@ export async function GET(req: NextRequest) {
       if (allDefaults.length > 0) {
         const existingEntries = await sql`
           SELECT date, activity_id FROM schedule_entries
-          WHERE date >= ${startDate} AND date <= ${endDate} AND removed = 0 AND user_id = ${userId} AND activity_id IS NOT NULL
+          WHERE date >= ${startDate} AND date <= ${endDate} AND user_id = ${userId} AND activity_id IS NOT NULL
         ` as unknown as Array<{ date: string | Date; activity_id: number }>;
         const scheduledSet = new Set(existingEntries.map(r => {
           const d = typeof r.date === 'string' ? r.date : r.date.toISOString().split('T')[0];
