@@ -7,6 +7,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Plus, X, BookOpen } from 'lucide-react';
+import TaskLibraryPicker from './TaskLibraryPicker';
 
 interface EntrySubActivity {
   id: number;
@@ -36,13 +38,22 @@ export default function EditEntryModal({ entry, onClose, onSave }: EditEntryModa
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
-  // Sub-activities
+  // Pre-defined sub-activities from the activity
   const [availableSubs, setAvailableSubs] = useState<{ id: number; label: string }[]>([]);
   const [selectedSubIds, setSelectedSubIds] = useState<number[]>(
     entry.entry_sub_activities
       .filter(s => s.sub_activity_id != null)
       .map(s => s.sub_activity_id as number)
   );
+
+  // Custom sub-activities (typed in or added from library)
+  const [customLabels, setCustomLabels] = useState<string[]>(
+    entry.entry_sub_activities
+      .filter(s => s.sub_activity_id == null)
+      .map(s => s.label)
+  );
+  const [newLabel, setNewLabel] = useState('');
+  const [showLibrary, setShowLibrary] = useState(false);
 
   useEffect(() => {
     if (!entry.activity_id) return;
@@ -52,6 +63,15 @@ export default function EditEntryModal({ entry, onClose, onSave }: EditEntryModa
       .catch(() => {});
   }, [entry.activity_id]);
 
+  const addCustomLabel = () => {
+    const trimmed = newLabel.trim();
+    if (!trimmed) return;
+    if (!customLabels.some(l => l.toLowerCase() === trimmed.toLowerCase())) {
+      setCustomLabels(prev => [...prev, trimmed]);
+    }
+    setNewLabel('');
+  };
+
   const handleSave = async () => {
     if (!timeSlot) { setError('Time is required'); return; }
     const dur = Number(duration);
@@ -59,11 +79,10 @@ export default function EditEntryModal({ entry, onClose, onSave }: EditEntryModa
     setSaving(true);
     setError('');
     try {
-      // Update sub-activities first
       await fetch(`/api/schedule/${entry.id}/sub-activities`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sub_activity_ids: selectedSubIds }),
+        body: JSON.stringify({ sub_activity_ids: selectedSubIds, custom_labels: customLabels }),
       });
       await onSave({ time_slot: timeSlot, duration_minutes: dur, notes: notes.trim() || null });
     } catch {
@@ -120,6 +139,8 @@ export default function EditEntryModal({ entry, onClose, onSave }: EditEntryModa
               className="mt-1"
             />
           </div>
+
+          {/* Pre-defined sub-activities from the activity */}
           {availableSubs.length > 0 && (
             <div>
               <Label>Sub-activities</Label>
@@ -138,6 +159,72 @@ export default function EditEntryModal({ entry, onClose, onSave }: EditEntryModa
               </div>
             </div>
           )}
+
+          {/* Custom sub-activities */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <Label>Add Tasks</Label>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setShowLibrary(v => !v)}
+                className="h-7 text-xs gap-1"
+              >
+                <BookOpen className="h-3.5 w-3.5" />
+                {showLibrary ? 'Hide Library' : 'Browse Library'}
+              </Button>
+            </div>
+
+            {showLibrary && (
+              <div className="mb-3">
+                <TaskLibraryPicker
+                  selectedLabels={customLabels}
+                  onAdd={label => {
+                    if (!customLabels.some(l => l.toLowerCase() === label.toLowerCase())) {
+                      setCustomLabels(prev => [...prev, label]);
+                    }
+                  }}
+                  onRemove={label => {
+                    setCustomLabels(prev => prev.filter(l => l.toLowerCase() !== label.toLowerCase()));
+                  }}
+                  onClose={() => setShowLibrary(false)}
+                />
+              </div>
+            )}
+
+            {customLabels.length > 0 && (
+              <div className="space-y-1 mb-2">
+                {customLabels.map((label, i) => (
+                  <div key={i} className="flex items-center gap-2 px-3 py-1.5 rounded border bg-white dark:bg-gray-800 text-sm">
+                    <span className="flex-1">{label}</span>
+                    <button
+                      type="button"
+                      onClick={() => setCustomLabels(prev => prev.filter((_, idx) => idx !== i))}
+                      className="p-1 text-gray-400 hover:text-red-500 min-w-[32px] min-h-[32px] flex items-center justify-center rounded"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="flex gap-2">
+              <Input
+                placeholder="Add a task..."
+                value={newLabel}
+                onChange={e => setNewLabel(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter') { e.preventDefault(); addCustomLabel(); }
+                }}
+              />
+              <Button type="button" size="sm" variant="outline" onClick={addCustomLabel}>
+                <Plus className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+
           {error && <p id="edit-entry-error" className="text-sm text-red-500">{error}</p>}
         </div>
         <DialogFooter>

@@ -3,11 +3,11 @@ import sql from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
 
-// Replace all sub-activities for an entry with the given sub_activity_ids
+// Replace all sub-activities for an entry with the given sub_activity_ids and custom_labels
 export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
   try {
     const entryId = Number(params.id);
-    const { sub_activity_ids } = await req.json();
+    const { sub_activity_ids, custom_labels } = await req.json();
     if (!Array.isArray(sub_activity_ids)) {
       return NextResponse.json({ error: 'sub_activity_ids must be an array' }, { status: 400 });
     }
@@ -19,6 +19,14 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
           await sql`
             INSERT INTO schedule_entry_sub_activities (entry_id, sub_activity_id, label, completed)
             VALUES (${entryId}, ${subId}, ${(labels[0] as { label: string }).label}, 0)
+          `;
+        }
+      }
+      for (const label of (custom_labels ?? []) as string[]) {
+        if (label.trim()) {
+          await sql`
+            INSERT INTO schedule_entry_sub_activities (entry_id, sub_activity_id, label, completed)
+            VALUES (${entryId}, NULL, ${label.trim()}, 0)
           `;
         }
       }
