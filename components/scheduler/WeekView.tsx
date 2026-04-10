@@ -12,11 +12,22 @@ import { ExportWeekDocButton } from '@/components/shared/ExportButtons';
 interface ScheduleEntry {
   id: number;
   time_slot: string;
+  duration_minutes: number;
   activity_name: string;
   category: string | null;
   color: string;
   date: string;
   is_completed: number;
+}
+
+function endTime(timeSlot: string, durationMinutes: number): string {
+  const [h, m] = timeSlot.slice(0, 5).split(':').map(Number);
+  const total = h * 60 + m + durationMinutes;
+  const eh = Math.floor(total / 60) % 24;
+  const em = total % 60;
+  const period = eh >= 12 ? 'PM' : 'AM';
+  const hour = eh % 12 || 12;
+  return `${hour}:${String(em).padStart(2, '0')} ${period}`;
 }
 
 function hexToRgba(hex: string, alpha: number): string {
@@ -161,7 +172,7 @@ export default function WeekView({ selectedDate, refreshKey, onSelectDay }: Week
                         aria-label={`Edit ${e.activity_name} — go to ${format(day, 'EEEE')}`}
                       >
                         <span className="font-mono text-xs text-red-800 dark:text-red-400">
-                          {formatTime(e.time_slot)}
+                          {formatTime(e.time_slot)}–{endTime(e.time_slot, e.duration_minutes)}
                         </span>
                         <br />
                         <span className="text-gray-700 dark:text-gray-300 leading-tight">{e.activity_name}</span>
