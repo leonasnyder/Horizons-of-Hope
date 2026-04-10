@@ -199,30 +199,34 @@ export async function POST(req: NextRequest) {
       `;
     }
 
-    await sql.begin(async sql => {
+    const hasSubs = (Array.isArray(sub_activity_ids) && sub_activity_ids.length > 0) ||
+                    (Array.isArray(custom_sub_labels) && custom_sub_labels.length > 0);
+    if (hasSubs) {
       const entryId = entry.id as number;
-      if (Array.isArray(sub_activity_ids) && sub_activity_ids.length > 0) {
-        for (const subId of sub_activity_ids as number[]) {
-          const labels = await sql`SELECT label FROM activity_sub_activities WHERE id = ${subId} AND is_active = 1`;
-          if (labels.length > 0) {
-            await sql`
-              INSERT INTO schedule_entry_sub_activities (entry_id, sub_activity_id, label, completed)
-              VALUES (${entryId}, ${subId}, ${(labels[0] as { label: string }).label}, 0)
-            `;
+      await sql.begin(async sql => {
+        if (Array.isArray(sub_activity_ids)) {
+          for (const subId of sub_activity_ids as number[]) {
+            const labels = await sql`SELECT label FROM activity_sub_activities WHERE id = ${subId} AND is_active = 1`;
+            if (labels.length > 0) {
+              await sql`
+                INSERT INTO schedule_entry_sub_activities (entry_id, sub_activity_id, label, completed)
+                VALUES (${entryId}, ${subId}, ${(labels[0] as { label: string }).label}, 0)
+              `;
+            }
           }
         }
-      }
-      if (Array.isArray(custom_sub_labels)) {
-        for (const label of custom_sub_labels as string[]) {
-          if (typeof label === 'string' && label.trim()) {
-            await sql`
-              INSERT INTO schedule_entry_sub_activities (entry_id, sub_activity_id, label, completed)
-              VALUES (${entryId}, null, ${label.trim()}, 0)
-            `;
+        if (Array.isArray(custom_sub_labels)) {
+          for (const label of custom_sub_labels as string[]) {
+            if (typeof label === 'string' && label.trim()) {
+              await sql`
+                INSERT INTO schedule_entry_sub_activities (entry_id, sub_activity_id, label, completed)
+                VALUES (${entryId}, null, ${label.trim()}, 0)
+              `;
+            }
           }
         }
-      }
-    });
+      });
+    }
 
     return NextResponse.json(entry, { status: 201 });
   } catch (e) {
