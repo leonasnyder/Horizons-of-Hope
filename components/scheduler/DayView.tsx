@@ -5,7 +5,7 @@ import {
   useSensor, useSensors, closestCenter, useDroppable,
 } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
-import { Plus, Printer, Loader2, RefreshCw, AlertTriangle, Undo2, Lock, Pencil, Trash2 } from 'lucide-react';
+import { Plus, Printer, Loader2, RefreshCw, AlertTriangle, Undo2, Lock, Pencil, Trash2, Check } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { toast } from 'sonner';
 import { useReactToPrint } from 'react-to-print';
@@ -473,9 +473,20 @@ export default function DayView({ date, refreshKey, onReset }: DayViewProps) {
               ...overlappedEntries.map(e => ({ ...e, reason: 'overlaps another activity' }))
             ].map(e => (
               <div key={e.id} className="flex items-center gap-3 px-3 py-2 bg-white dark:bg-gray-800">
+                {/* Complete toggle */}
+                <button
+                  onClick={() => handleUpdate(e.id, { is_completed: e.is_completed ? 0 : 1 })}
+                  className={cn(
+                    'w-9 h-9 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors',
+                    e.is_completed ? 'bg-green-500 border-green-500 text-white' : 'border-gray-300 hover:border-green-400'
+                  )}
+                  aria-label={e.is_completed ? 'Mark incomplete' : 'Mark complete'}
+                >
+                  {e.is_completed && <Check className="h-3.5 w-3.5" />}
+                </button>
                 <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: e.color }} />
                 <div className="flex-1 min-w-0">
-                  <span className="text-sm font-medium">{e.activity_name}</span>
+                  <span className={cn('text-sm font-medium', e.is_completed && 'line-through text-gray-400')}>{e.activity_name}</span>
                   <span className="text-xs text-gray-400 ml-2">{e.time_slot.slice(0, 5)} · {e.reason}</span>
                 </div>
                 <button
