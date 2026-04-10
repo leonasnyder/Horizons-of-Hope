@@ -193,7 +193,7 @@ export default function ActivityManager({ open, onClose }: ActivityManagerProps)
 
   return (
   <>
-    <Dialog open={open} onOpenChange={onClose}>
+    <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen && !confirmDialog) onClose(); }}>
       <DialogContent id="activity-manager" className="max-w-2xl max-h-[90vh] flex flex-col">
         <DialogHeader>
           <div className="flex items-center justify-between gap-2">
