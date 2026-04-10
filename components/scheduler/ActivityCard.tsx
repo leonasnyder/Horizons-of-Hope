@@ -124,8 +124,8 @@ export default function ActivityCard({
 
   return (
     <div ref={setNodeRef} style={style} id={`activity-card-${entry.id}`} className="relative">
-      {/* Red delete strip revealed by swipe */}
-      {!readOnly && (
+      {/* Red delete strip — only visible while swiping */}
+      {!readOnly && swipeX < 0 && (
         <div className="absolute inset-0 flex items-center justify-end bg-red-500 rounded-lg pr-5 pointer-events-none">
           <Trash2 className="h-5 w-5 text-white" />
         </div>
