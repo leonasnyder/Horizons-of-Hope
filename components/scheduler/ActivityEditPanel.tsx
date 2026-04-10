@@ -84,7 +84,7 @@ export default function ActivityEditPanel({
             days: parseDays(d.days_of_week),
           }));
           setSlots(loaded);
-          initialSlotsRef.current = loaded.map(s => ({ time: s.time, duration: s.duration }));
+          initialSlotsRef.current = loaded.map((s: { time: string; duration: number; days: number[] }) => ({ time: s.time, duration: s.duration }));
         } else if (data) {
           setIsDefault(!!data.is_default);
         }
