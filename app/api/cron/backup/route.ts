@@ -15,6 +15,7 @@ export async function GET(req: NextRequest) {
     const data = {
       version: '1.0.0',
       exported_at: new Date().toISOString(),
+      categories: await sql`SELECT * FROM categories`,
       activities: await sql`SELECT * FROM activities`,
       activity_defaults: await sql`SELECT * FROM activity_defaults`,
       activity_sub_activities: await sql`SELECT * FROM activity_sub_activities`,
@@ -24,6 +25,8 @@ export async function GET(req: NextRequest) {
       goals: await sql`SELECT * FROM goals`,
       goal_subcategories: await sql`SELECT * FROM goal_subcategories`,
       goal_responses: await sql`SELECT * FROM goal_responses`,
+      task_library_categories: await sql`SELECT * FROM task_library_categories`,
+      task_library_items: await sql`SELECT * FROM task_library_items`,
       app_settings: await sql`SELECT * FROM app_settings`,
     };
 
