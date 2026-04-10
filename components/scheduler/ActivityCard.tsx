@@ -1,9 +1,11 @@
 'use client';
-import React from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import { Check, GripVertical, Trash2, Edit2 } from 'lucide-react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { cn, formatTime } from '@/lib/utils';
+
+const SWIPE_THRESHOLD = 72;
 
 function hexToRgba(hex: string, alpha: number): string {
   const h = hex.replace('#', '');
@@ -72,9 +74,45 @@ export default function ActivityCard({
     await onUpdate(entry.id, { is_completed: entry.is_completed ? 0 : 1 });
   };
 
-  const handleRemove = async () => {
+  const handleRemove = useCallback(async () => {
     await onRemove(entry.id);
-  };
+  }, [onRemove, entry.id]);
+
+  // Swipe-to-delete state
+  const [swipeX, setSwipeX] = useState(0);
+  const swipeXRef = useRef(0);
+  const swipeStart = useRef<{ x: number; y: number } | null>(null);
+  const swiping = useRef(false);
+
+  const onSwipeTouchStart = useCallback((e: React.TouchEvent) => {
+    if (isDragging || readOnly) return;
+    swipeStart.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    swiping.current = false;
+  }, [isDragging, readOnly]);
+
+  const onSwipeTouchMove = useCallback((e: React.TouchEvent) => {
+    if (!swipeStart.current || isDragging) return;
+    const dx = e.touches[0].clientX - swipeStart.current.x;
+    const dy = e.touches[0].clientY - swipeStart.current.y;
+    if (!swiping.current) {
+      if (Math.abs(dx) < 5 && Math.abs(dy) < 5) return;
+      if (Math.abs(dy) >= Math.abs(dx) || dx >= 0) { swipeStart.current = null; return; }
+      swiping.current = true;
+    }
+    const val = Math.max(dx, -SWIPE_THRESHOLD * 1.5);
+    swipeXRef.current = val;
+    setSwipeX(val);
+  }, [isDragging]);
+
+  const onSwipeTouchEnd = useCallback(() => {
+    if (swipeXRef.current < -SWIPE_THRESHOLD) {
+      handleRemove();
+    }
+    swipeXRef.current = 0;
+    setSwipeX(0);
+    swipeStart.current = null;
+    swiping.current = false;
+  }, [handleRemove]);
 
   const color = entry.color || '#F97316';
   const cardStyle: React.CSSProperties = {
@@ -85,7 +123,23 @@ export default function ActivityCard({
   };
 
   return (
-    <div ref={setNodeRef} style={style} id={`activity-card-${entry.id}`}>
+    <div ref={setNodeRef} style={style} id={`activity-card-${entry.id}`} className="relative">
+      {/* Red delete strip revealed by swipe */}
+      {!readOnly && (
+        <div className="absolute inset-0 flex items-center justify-end bg-red-500 rounded-lg pr-5 pointer-events-none">
+          <Trash2 className="h-5 w-5 text-white" />
+        </div>
+      )}
+      {/* Sliding card */}
+      <div
+        style={{
+          transform: `translateX(${swipeX}px)`,
+          transition: swipeX === 0 ? 'transform 0.25s ease' : 'none',
+        }}
+        onTouchStart={onSwipeTouchStart}
+        onTouchMove={onSwipeTouchMove}
+        onTouchEnd={onSwipeTouchEnd}
+      >
     <div
       style={cardStyle}
       className={cn(
@@ -211,6 +265,7 @@ export default function ActivityCard({
         </div>
       )}
     </div>
+      </div>{/* end sliding wrapper */}
     </div>
   );
 }
