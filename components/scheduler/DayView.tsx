@@ -36,6 +36,7 @@ interface ScheduleEntry {
 
 interface DayViewProps {
   date: string;
+  refreshKey?: number;
   onReset?: () => void;
 }
 
@@ -72,7 +73,7 @@ function DroppableSlot({ id, children }: { id: string; children: React.ReactNode
   );
 }
 
-export default function DayView({ date, onReset }: DayViewProps) {
+export default function DayView({ date, refreshKey, onReset }: DayViewProps) {
   const [entries, setEntries] = useState<ScheduleEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [scheduleStart, setScheduleStart] = useState('07:00');
@@ -111,7 +112,7 @@ export default function DayView({ date, onReset }: DayViewProps) {
     }
   }, [date]);
 
-  useEffect(() => { fetchEntries(); }, [fetchEntries]);
+  useEffect(() => { fetchEntries(); }, [fetchEntries, refreshKey]);
 
   useEffect(() => {
     fetch('/api/settings')
@@ -617,9 +618,27 @@ export default function DayView({ date, onReset }: DayViewProps) {
           entry={editingEntry}
           onClose={() => setEditingEntry(null)}
           onSave={async (data) => {
-            await handleUpdateWithCascade(editingEntry.id, data);
+            const { updateFuture, ...patchData } = data as { updateFuture?: boolean } & Record<string, unknown>;
+            if (updateFuture && editingEntry.activity_id) {
+              // Update today's entry first
+              await handleUpdateWithCascade(editingEntry.id, patchData);
+              // Then bulk-update all future entries for this activity
+              await fetch('/api/schedule/update-future', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  activity_id: editingEntry.activity_id,
+                  from_date: date,
+                  time_slot: 'time_slot' in patchData ? patchData.time_slot : undefined,
+                  duration_minutes: 'duration_minutes' in patchData ? patchData.duration_minutes : undefined,
+                }),
+              });
+              toast.success('Updated today and all future occurrences');
+            } else {
+              await handleUpdateWithCascade(editingEntry.id, patchData);
+              toast.success('Activity updated');
+            }
             setEditingEntry(null);
-            toast.success('Activity updated');
           }}
         />
       )}

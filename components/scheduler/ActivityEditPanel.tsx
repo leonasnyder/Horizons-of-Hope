@@ -1,11 +1,12 @@
 'use client';
-import { useState, useEffect } from 'react';
-import { Plus, X, Trash2, BookOpen } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Plus, X, Trash2, BookOpen, CalendarDays } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
+import { format } from 'date-fns';
 import TaskLibraryPicker from './TaskLibraryPicker';
 
 interface Category { id: number; name: string; color: string; }
@@ -62,11 +63,14 @@ export default function ActivityEditPanel({
   const [saving, setSaving] = useState(false);
   const [showLibrary, setShowLibrary] = useState(false);
   const [isDefault, setIsDefault] = useState(false);
+  const [updateFuture, setUpdateFuture] = useState(false);
 
   // Multiple time slots
   const [slots, setSlots] = useState<Array<{ time: string; duration: number; days: number[] }>>([
     { time: '09:00', duration: 30, days: ALL_DAYS },
   ]);
+  // Track original loaded slots to detect time/duration changes
+  const initialSlotsRef = useRef<Array<{ time: string; duration: number }>>([]);
 
   useEffect(() => {
     fetch(`/api/activities/${activityId}`)
@@ -74,11 +78,13 @@ export default function ActivityEditPanel({
       .then(data => {
         if (data && Array.isArray(data.defaults) && data.defaults.length > 0) {
           setIsDefault(true);
-          setSlots(data.defaults.map((d: DefaultSlot) => ({
-            time: d.default_time ?? '09:00',
+          const loaded = data.defaults.map((d: DefaultSlot) => ({
+            time: (d.default_time ?? '09:00').slice(0, 5),
             duration: d.default_duration ?? 30,
             days: parseDays(d.days_of_week),
-          })));
+          }));
+          setSlots(loaded);
+          initialSlotsRef.current = loaded.map(s => ({ time: s.time, duration: s.duration }));
         } else if (data) {
           setIsDefault(!!data.is_default);
         }
@@ -139,6 +145,30 @@ export default function ActivityEditPanel({
         }),
       });
       if (!res.ok) throw new Error();
+
+      // If user chose to update future scheduled entries too
+      if (updateFuture && isDefault) {
+        const today = format(new Date(), 'yyyy-MM-dd');
+        for (let i = 0; i < slots.length; i++) {
+          const orig = initialSlotsRef.current[i];
+          const curr = slots[i];
+          const timeChanged = orig && curr.time !== orig.time;
+          const durChanged = orig && curr.duration !== orig.duration;
+          if (timeChanged || durChanged) {
+            await fetch('/api/schedule/update-future', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                activity_id: activityId,
+                from_date: today,
+                time_slot: timeChanged ? curr.time : undefined,
+                duration_minutes: durChanged ? curr.duration : undefined,
+              }),
+            });
+          }
+        }
+      }
+
       toast.success('Activity updated');
       onSaved();
     } catch {
@@ -418,6 +448,41 @@ export default function ActivityEditPanel({
           </Button>
         </div>
       </div>
+
+      {/* Update future occurrences option — show when time/duration changed on a recurring activity */}
+      {isDefault && slots.some((s, i) => {
+        const orig = initialSlotsRef.current[i];
+        return orig && (s.time !== orig.time || s.duration !== orig.duration);
+      }) && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 dark:bg-amber-900/20 dark:border-amber-700 p-3">
+          <div className="flex items-center gap-2 mb-2 text-sm font-medium text-amber-800 dark:text-amber-300">
+            <CalendarDays className="h-4 w-4 flex-shrink-0" />
+            Apply time/duration change to:
+          </div>
+          <div className="space-y-2">
+            <label className="flex items-center gap-2 cursor-pointer text-sm">
+              <input
+                type="radio"
+                name={`update-scope-${activityId}`}
+                checked={!updateFuture}
+                onChange={() => setUpdateFuture(false)}
+                className="accent-red-600"
+              />
+              Defaults only (new weeks will use the new time)
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer text-sm">
+              <input
+                type="radio"
+                name={`update-scope-${activityId}`}
+                checked={updateFuture}
+                onChange={() => setUpdateFuture(true)}
+                className="accent-red-600"
+              />
+              Defaults + all already-scheduled future occurrences
+            </label>
+          </div>
+        </div>
+      )}
 
       {/* Actions */}
       <div className="flex gap-2 justify-end">

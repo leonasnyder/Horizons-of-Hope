@@ -14,8 +14,18 @@ interface ScheduleEntry {
   time_slot: string;
   activity_name: string;
   category: string | null;
+  color: string;
   date: string;
   is_completed: number;
+}
+
+function hexToRgba(hex: string, alpha: number): string {
+  const h = hex.replace('#', '');
+  const r = parseInt(h.substring(0, 2), 16);
+  const g = parseInt(h.substring(2, 4), 16);
+  const b = parseInt(h.substring(4, 6), 16);
+  if (isNaN(r) || isNaN(g) || isNaN(b)) return `rgba(249,115,22,${alpha})`;
+  return `rgba(${r},${g},${b},${alpha})`;
 }
 
 interface WeekViewProps {
@@ -141,12 +151,18 @@ export default function WeekView({ selectedDate, refreshKey, onSelectDay }: Week
                         key={e.id}
                         id={`week-entry-${e.id}`}
                         onClick={() => onSelectDay(dateStr)}
-                        className={`w-full text-left text-xs p-1.5 rounded bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-orange-700 hover:bg-red-100 dark:hover:bg-red-900/50 transition-colors ${
+                        className={`w-full text-left text-xs p-1.5 rounded border transition-colors ${
                           e.is_completed ? 'opacity-50 line-through' : ''
                         }`}
+                        style={{
+                          backgroundColor: hexToRgba(e.color || '#F97316', 0.15),
+                          borderColor: hexToRgba(e.color || '#F97316', 0.5),
+                        }}
                         aria-label={`Edit ${e.activity_name} — go to ${format(day, 'EEEE')}`}
                       >
-                        <span className="font-mono text-red-700 dark:text-red-500 text-xs">{formatTime(e.time_slot)}</span>
+                        <span className="font-mono text-xs" style={{ color: e.color || '#F97316' }}>
+                          {formatTime(e.time_slot)}
+                        </span>
                         <br />
                         <span className="text-gray-700 dark:text-gray-300 leading-tight">{e.activity_name}</span>
                       </button>

@@ -1,8 +1,18 @@
 'use client';
+import React from 'react';
 import { Check, GripVertical, Trash2, Edit2 } from 'lucide-react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { cn, formatTime } from '@/lib/utils';
+
+function hexToRgba(hex: string, alpha: number): string {
+  const h = hex.replace('#', '');
+  const r = parseInt(h.substring(0, 2), 16);
+  const g = parseInt(h.substring(2, 4), 16);
+  const b = parseInt(h.substring(4, 6), 16);
+  if (isNaN(r) || isNaN(g) || isNaN(b)) return `rgba(249,115,22,${alpha})`;
+  return `rgba(${r},${g},${b},${alpha})`;
+}
 
 const CATEGORY_COLORS: Record<string, string> = {
   'Social': 'bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300',
@@ -66,12 +76,20 @@ export default function ActivityCard({
     await onRemove(entry.id);
   };
 
+  const color = entry.color || '#F97316';
+  const cardStyle: React.CSSProperties = {
+    ...(cardMinHeight ? { minHeight: `${cardMinHeight}px`, overflow: 'visible' } : {}),
+    position: 'relative',
+    backgroundColor: hexToRgba(color, 0.08),
+    borderColor: hexToRgba(color, 0.4),
+  };
+
   return (
     <div ref={setNodeRef} style={style} id={`activity-card-${entry.id}`}>
     <div
-      style={cardMinHeight ? { minHeight: `${cardMinHeight}px`, overflow: 'visible', position: 'relative' } : { position: 'relative' }}
+      style={cardStyle}
       className={cn(
-        'flex flex-col gap-1 p-3 rounded-lg border bg-white dark:bg-gray-800 shadow-sm group',
+        'flex flex-col gap-1 p-3 rounded-lg border shadow-sm group',
         isDragging && 'opacity-50 shadow-lg z-50',
         entry.is_completed && 'opacity-60'
       )}

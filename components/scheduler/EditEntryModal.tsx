@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Plus, X, BookOpen } from 'lucide-react';
+import { Plus, X, BookOpen, CalendarDays } from 'lucide-react';
 import TaskLibraryPicker from './TaskLibraryPicker';
 
 interface EntrySubActivity {
@@ -31,12 +31,21 @@ interface EditEntryModalProps {
   onSave: (data: Record<string, unknown>) => Promise<void>;
 }
 
+// Normalize "HH:MM:SS" → "HH:MM" so browser time inputs compare correctly
+function normalizeTime(t: string) { return t ? t.slice(0, 5) : t; }
+
 export default function EditEntryModal({ entry, onClose, onSave }: EditEntryModalProps) {
-  const [timeSlot, setTimeSlot] = useState(entry.time_slot);
+  const initialTime = normalizeTime(entry.time_slot);
+  const [timeSlot, setTimeSlot] = useState(initialTime);
   const [duration, setDuration] = useState(String(entry.duration_minutes));
   const [notes, setNotes] = useState(entry.notes ?? '');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [updateFuture, setUpdateFuture] = useState(false);
+
+  const timeChanged = timeSlot !== initialTime;
+  const durationChanged = Number(duration) !== entry.duration_minutes;
+  const timeOrDurationChanged = (timeChanged || durationChanged) && !!entry.activity_id;
 
   // Pre-defined sub-activities from the activity
   const [availableSubs, setAvailableSubs] = useState<{ id: number; label: string }[]>([]);
@@ -84,7 +93,7 @@ export default function EditEntryModal({ entry, onClose, onSave }: EditEntryModa
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ sub_activity_ids: selectedSubIds, custom_labels: customLabels }),
       });
-      await onSave({ time_slot: timeSlot, duration_minutes: dur, notes: notes.trim() || null });
+      await onSave({ time_slot: timeSlot, duration_minutes: dur, notes: notes.trim() || null, updateFuture: timeOrDurationChanged && updateFuture });
     } catch {
       setError('Failed to save');
     } finally {
@@ -128,6 +137,37 @@ export default function EditEntryModal({ entry, onClose, onSave }: EditEntryModa
               className="mt-1"
             />
           </div>
+          {timeOrDurationChanged && (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 dark:bg-amber-900/20 dark:border-amber-700 p-3">
+              <div className="flex items-center gap-2 mb-2 text-sm font-medium text-amber-800 dark:text-amber-300">
+                <CalendarDays className="h-4 w-4 flex-shrink-0" />
+                Apply time/duration change to:
+              </div>
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 cursor-pointer text-sm">
+                  <input
+                    type="radio"
+                    name="update-scope"
+                    checked={!updateFuture}
+                    onChange={() => setUpdateFuture(false)}
+                    className="accent-red-600"
+                  />
+                  Just today
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer text-sm">
+                  <input
+                    type="radio"
+                    name="update-scope"
+                    checked={updateFuture}
+                    onChange={() => setUpdateFuture(true)}
+                    className="accent-red-600"
+                  />
+                  Today and all future occurrences
+                </label>
+              </div>
+            </div>
+          )}
+
           <div>
             <Label htmlFor="edit-entry-notes">Notes</Label>
             <Textarea

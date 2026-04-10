@@ -7,9 +7,10 @@ import DayView from '@/components/scheduler/DayView';
 import WeekView from '@/components/scheduler/WeekView';
 import ActivityManager from '@/components/scheduler/ActivityManager';
 import { Button } from '@/components/ui/button';
-import { CalendarDays, Calendar, Settings2 } from 'lucide-react';
+import { CalendarDays, Calendar, Settings2, RefreshCw } from 'lucide-react';
 import { useActivityReminders } from '@/lib/hooks/useActivityReminders';
 import ActivityReminderBanner from '@/components/scheduler/ActivityReminderBanner';
+import { usePullToRefresh, PULL_THRESHOLD } from '@/lib/hooks/usePullToRefresh';
 
 type ViewMode = 'day' | 'week';
 
@@ -18,11 +19,34 @@ export default function SchedulerPage() {
   const [viewMode, setViewMode] = useState<ViewMode>('day');
   const [activityManagerOpen, setActivityManagerOpen] = useState(false);
   const [weekRefreshKey, setWeekRefreshKey] = useState(0);
+  const [dayRefreshKey, setDayRefreshKey] = useState(0);
   const handleDayReset = useCallback(() => setWeekRefreshKey(k => k + 1), []);
+
+  const handlePullRefresh = useCallback(() => {
+    if (viewMode === 'day') setDayRefreshKey(k => k + 1);
+    else setWeekRefreshKey(k => k + 1);
+  }, [viewMode]);
+
+  const { pullDistance } = usePullToRefresh(handlePullRefresh);
   const { reminders, dismiss } = useActivityReminders();
 
   return (
     <div id="scheduler-page" className="max-w-7xl mx-auto p-4">
+      {/* Pull-to-refresh indicator — always mounted, height animates with pull */}
+      <div
+        className="flex items-center justify-center overflow-hidden"
+        style={{ height: `${pullDistance}px` }}
+      >
+        <div className={`flex flex-col items-center gap-1 ${pullDistance >= PULL_THRESHOLD ? 'text-red-600' : 'text-gray-400'}`}>
+          <RefreshCw
+            className="h-6 w-6 transition-colors duration-150"
+            style={{ transform: `rotate(${(pullDistance / PULL_THRESHOLD) * 360}deg)` }}
+          />
+          <span className="text-xs font-medium">
+            {pullDistance >= PULL_THRESHOLD ? 'Release to refresh' : 'Pull to refresh'}
+          </span>
+        </div>
+      </div>
       <ActivityReminderBanner reminders={reminders} onDismiss={dismiss} />
       <div className="flex flex-col lg:flex-row gap-6">
         {/* Sidebar */}
@@ -64,7 +88,7 @@ export default function SchedulerPage() {
               </button>
               <button
                 id="scheduler-week-view-btn"
-                onClick={() => setViewMode('week')}
+                onClick={() => { setViewMode('week'); setWeekRefreshKey(k => k + 1); }}
                 className={`flex items-center gap-1.5 px-4 py-2 text-sm font-medium transition-colors min-h-[44px] ${
                   viewMode === 'week'
                     ? 'bg-red-600 text-white'
@@ -77,7 +101,7 @@ export default function SchedulerPage() {
           </div>
 
           {viewMode === 'day' ? (
-            <DayView date={selectedDate} onReset={handleDayReset} />
+            <DayView date={selectedDate} refreshKey={dayRefreshKey} onReset={handleDayReset} />
           ) : (
             <WeekView
               selectedDate={selectedDate}
