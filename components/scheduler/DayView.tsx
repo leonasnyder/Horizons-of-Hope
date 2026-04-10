@@ -2,9 +2,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   DndContext, DragEndEvent, PointerSensor, TouchSensor,
-  useSensor, useSensors, closestCenter, pointerWithin,
-  rectIntersection, useDroppable,
-  type CollisionDetection,
+  useSensor, useSensors, closestCenter, useDroppable,
 } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { Plus, Printer, Loader2, RefreshCw, AlertTriangle, Undo2, Lock, Pencil } from 'lucide-react';
@@ -61,16 +59,6 @@ function minutesToSlot(totalMinutes: number): string {
   const m = snapped % 60;
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 }
-
-// Custom collision: pointer-within first (catches exact slot under finger),
-// then rect intersection, then closest center as final fallback.
-const timelineCollision: CollisionDetection = (args) => {
-  const pointer = pointerWithin(args);
-  if (pointer.length > 0) return pointer;
-  const rect = rectIntersection(args);
-  if (rect.length > 0) return rect;
-  return closestCenter(args);
-};
 
 // These are computed dynamically inside the component from user settings
 
@@ -491,7 +479,7 @@ export default function DayView({ date, onReset }: DayViewProps) {
         </div>
       )}
 
-      <DndContext sensors={sensors} collisionDetection={timelineCollision} onDragEnd={handleDragEnd}>
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <SortableContext items={entries.map(e => e.id)} strategy={verticalListSortingStrategy}>
           <div id="day-view-timeline">
             {segments.map(seg => {
