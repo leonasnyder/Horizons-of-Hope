@@ -5,7 +5,7 @@ import {
   useSensor, useSensors, closestCenter, useDroppable,
 } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
-import { Plus, Printer, Loader2, RefreshCw, AlertTriangle, Undo2, Lock, Pencil } from 'lucide-react';
+import { Plus, Printer, Loader2, RefreshCw, AlertTriangle, Undo2, Lock, Pencil, Trash2 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { toast } from 'sonner';
 import { useReactToPrint } from 'react-to-print';
@@ -461,21 +461,32 @@ export default function DayView({ date, refreshKey, onReset }: DayViewProps) {
       )}
 
       {(hiddenEntries.length > 0 || overlappedEntries.length > 0) && (
-        <div className="mb-3 p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 flex items-start gap-2">
-          <AlertTriangle className="h-4 w-4 text-amber-500 flex-shrink-0 mt-0.5" />
-          <div className="flex-1 text-sm text-amber-800 dark:text-amber-300">
-            <span className="font-medium">
-              {hiddenEntries.length + overlappedEntries.length} hidden activit{hiddenEntries.length + overlappedEntries.length === 1 ? 'y' : 'ies'}
+        <div className="mb-3 rounded-lg border border-amber-200 dark:border-amber-700 overflow-hidden">
+          <div className="flex items-center gap-2 px-3 py-2 bg-amber-50 dark:bg-amber-900/20">
+            <AlertTriangle className="h-4 w-4 text-amber-500 flex-shrink-0" />
+            <span className="text-sm font-medium text-amber-800 dark:text-amber-300">
+              {hiddenEntries.length + overlappedEntries.length} hidden activit{hiddenEntries.length + overlappedEntries.length === 1 ? 'y' : 'ies'} — delete or move them
             </span>
-            {hiddenEntries.length > 0 && (
-              <span> ({hiddenEntries.map(e => e.activity_name).join(', ')} outside visible hours)</span>
-            )}
-            {overlappedEntries.length > 0 && (
-              <span> ({overlappedEntries.map(e => e.activity_name).join(', ')} overlapping another activity)</span>
-            )}
-            {' — '}
-            <button onClick={handleResetToDefaults} className="underline font-medium">Reset to Defaults</button>
-            {' to fix.'}
+          </div>
+          <div className="divide-y divide-amber-100 dark:divide-amber-800">
+            {[...hiddenEntries.map(e => ({ ...e, reason: 'outside visible hours' })),
+              ...overlappedEntries.map(e => ({ ...e, reason: 'overlaps another activity' }))
+            ].map(e => (
+              <div key={e.id} className="flex items-center gap-3 px-3 py-2 bg-white dark:bg-gray-800">
+                <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: e.color }} />
+                <div className="flex-1 min-w-0">
+                  <span className="text-sm font-medium">{e.activity_name}</span>
+                  <span className="text-xs text-gray-400 ml-2">{e.time_slot.slice(0, 5)} · {e.reason}</span>
+                </div>
+                <button
+                  onClick={() => handleRemove(e.id)}
+                  className="p-1.5 text-gray-400 hover:text-red-500 rounded"
+                  aria-label={`Remove ${e.activity_name}`}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </div>
+            ))}
           </div>
         </div>
       )}
