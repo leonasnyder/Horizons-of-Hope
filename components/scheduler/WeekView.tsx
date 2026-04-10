@@ -160,7 +160,7 @@ export default function WeekView({ selectedDate, refreshKey, onSelectDay }: Week
                         }}
                         aria-label={`Edit ${e.activity_name} — go to ${format(day, 'EEEE')}`}
                       >
-                        <span className="font-mono text-xs" style={{ color: e.color || '#F97316' }}>
+                        <span className="font-mono text-xs text-red-800 dark:text-red-400">
                           {formatTime(e.time_slot)}
                         </span>
                         <br />
