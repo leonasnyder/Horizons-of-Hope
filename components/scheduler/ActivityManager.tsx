@@ -1,10 +1,10 @@
 'use client';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { Plus, Archive, Search, RotateCcw, Tags, Edit2, Trash2, X, BookOpen } from 'lucide-react';
 import CategoryManager from './CategoryManager';
 import ActivityEditPanel from './ActivityEditPanel';
 import TaskLibraryPicker from './TaskLibraryPicker';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -49,10 +49,6 @@ export default function ActivityManager({ open, onClose }: ActivityManagerProps)
   const [newSubActivities, setNewSubActivities] = useState<string[]>([]);
   const [newSubLabel, setNewSubLabel] = useState('');
   const [showNewLibrary, setShowNewLibrary] = useState(false);
-  const [confirmDialog, setConfirmDialog] = useState<{
-    title: string; message: string; onConfirm: () => void;
-  } | null>(null);
-  const confirmOpenRef = useRef(false);
 
   const fetchActivities = () => {
     fetch('/api/activities?includeArchived=true')
@@ -90,38 +86,26 @@ export default function ActivityManager({ open, onClose }: ActivityManagerProps)
     toast.success(`${a.name} ${a.is_default ? 'removed from' : 'added to'} daily defaults`);
   };
 
-  const archiveActivity = (a: Activity) => {
-    confirmOpenRef.current = true;
-    setConfirmDialog({
-      title: `Archive "${a.name}"?`,
-      message: 'It will be hidden from new schedules but can be restored later.',
-      onConfirm: async () => {
-        await fetch(`/api/activities/${a.id}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ is_archived: 1 }),
-        });
-        fetchActivities();
-        toast.success(`${a.name} archived`);
-      },
+  const archiveActivity = async (a: Activity) => {
+    if (!confirm(`Archive "${a.name}"?\n\nIt will be hidden from new schedules but can be restored later.`)) return;
+    await fetch(`/api/activities/${a.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ is_archived: 1 }),
     });
+    fetchActivities();
+    toast.success(`${a.name} archived`);
   };
 
-  const deleteActivity = (a: Activity) => {
-    confirmOpenRef.current = true;
-    setConfirmDialog({
-      title: `Delete "${a.name}"?`,
-      message: 'This will permanently delete the activity and cannot be undone.',
-      onConfirm: async () => {
-        const res = await fetch(`/api/activities/${a.id}`, { method: 'DELETE' });
-        if (res.ok) {
-          fetchActivities();
-          toast.success(`${a.name} deleted`);
-        } else {
-          toast.error('Failed to delete activity');
-        }
-      },
-    });
+  const deleteActivity = async (a: Activity) => {
+    if (!confirm(`Delete "${a.name}"?\n\nThis will permanently delete the activity and cannot be undone.`)) return;
+    const res = await fetch(`/api/activities/${a.id}`, { method: 'DELETE' });
+    if (res.ok) {
+      fetchActivities();
+      toast.success(`${a.name} deleted`);
+    } else {
+      toast.error('Failed to delete activity');
+    }
   };
 
   const unarchiveActivity = async (a: Activity) => {
@@ -200,7 +184,7 @@ export default function ActivityManager({ open, onClose }: ActivityManagerProps)
 
   return (
   <>
-    <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen && !confirmOpenRef.current) onClose(); }}>
+    <Dialog open={open} onOpenChange={onClose}>
       <DialogContent id="activity-manager" className="max-w-2xl max-h-[90vh] flex flex-col">
         <DialogHeader>
           <div className="flex items-center justify-between gap-2">
@@ -571,18 +555,6 @@ export default function ActivityManager({ open, onClose }: ActivityManagerProps)
       onChanged={fetchCategories}
     />
 
-    <Dialog open={!!confirmDialog} onOpenChange={() => { confirmOpenRef.current = false; setConfirmDialog(null); }}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{confirmDialog?.title}</DialogTitle>
-          <DialogDescription>{confirmDialog?.message}</DialogDescription>
-        </DialogHeader>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => { confirmOpenRef.current = false; setConfirmDialog(null); }}>Cancel</Button>
-          <Button variant="destructive" onClick={() => { confirmDialog?.onConfirm(); confirmOpenRef.current = false; setConfirmDialog(null); }}>Confirm</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
   </>
   );
 }
