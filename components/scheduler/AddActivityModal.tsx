@@ -1,11 +1,12 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Plus, X } from 'lucide-react';
 
 interface Activity { id: number; name: string; category: string | null; }
 
@@ -25,6 +26,9 @@ export default function AddActivityModal({ date, defaultSlot, onClose, onAdded }
   const [error, setError] = useState('');
   const [subActivities, setSubActivities] = useState<{ id: number; label: string }[]>([]);
   const [selectedSubIds, setSelectedSubIds] = useState<number[]>([]);
+  const [customSubLabels, setCustomSubLabels] = useState<string[]>([]);
+  const [newSubLabel, setNewSubLabel] = useState('');
+  const newSubInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     fetch('/api/activities')
@@ -61,6 +65,7 @@ export default function AddActivityModal({ date, defaultSlot, onClose, onAdded }
           time_slot: timeSlot,
           duration_minutes: Number(duration) || 30,
           sub_activity_ids: selectedSubIds,
+          custom_sub_labels: customSubLabels,
         }),
       });
       if (!res.ok) {
@@ -131,10 +136,10 @@ export default function AddActivityModal({ date, defaultSlot, onClose, onAdded }
               />
             </div>
           </div>
-          {subActivities.length > 0 && (
-            <div id="add-activity-subactivities">
-              <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Sub-activities</p>
-              <div className="border rounded-lg divide-y max-h-48 overflow-y-auto">
+          <div id="add-activity-subactivities">
+            <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Subtasks</p>
+            {subActivities.length > 0 && (
+              <div className="border rounded-lg divide-y max-h-36 overflow-y-auto mb-2">
                 {subActivities.map(s => (
                   <label
                     key={s.id}
@@ -155,8 +160,58 @@ export default function AddActivityModal({ date, defaultSlot, onClose, onAdded }
                   </label>
                 ))}
               </div>
+            )}
+            {customSubLabels.length > 0 && (
+              <div className="space-y-1 mb-2">
+                {customSubLabels.map((label, i) => (
+                  <div key={i} className="flex items-center gap-2 px-3 py-1.5 rounded border bg-white dark:bg-gray-800 text-sm">
+                    <span className="flex-1">{label}</span>
+                    <button
+                      type="button"
+                      onClick={() => setCustomSubLabels(prev => prev.filter((_, idx) => idx !== i))}
+                      className="p-1 text-gray-400 hover:text-red-500"
+                      aria-label={`Remove ${label}`}
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className="flex gap-2">
+              <Input
+                ref={newSubInputRef}
+                placeholder="Add a subtask... (Enter to add)"
+                value={newSubLabel}
+                onChange={e => setNewSubLabel(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    if (newSubLabel.trim()) {
+                      setCustomSubLabels(prev => [...prev, newSubLabel.trim()]);
+                      setNewSubLabel('');
+                    }
+                  }
+                }}
+                className="text-sm"
+              />
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  if (newSubLabel.trim()) {
+                    setCustomSubLabels(prev => [...prev, newSubLabel.trim()]);
+                    setNewSubLabel('');
+                    newSubInputRef.current?.focus();
+                  }
+                }}
+                aria-label="Add subtask"
+              >
+                <Plus className="h-4 w-4" />
+              </Button>
             </div>
-          )}
+          </div>
           {error && <p id="add-activity-error" className="text-sm text-red-500">{error}</p>}
         </div>
         <DialogFooter>

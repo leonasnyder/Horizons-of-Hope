@@ -167,7 +167,7 @@ export async function POST(req: NextRequest) {
   if (errorResponse) return errorResponse;
   try {
     const body = await req.json();
-    const { activity_id, date, time_slot, duration_minutes, notes, sub_activity_ids } = body;
+    const { activity_id, date, time_slot, duration_minutes, notes, sub_activity_ids, custom_sub_labels } = body;
     if (!date || !time_slot) return NextResponse.json({ error: 'date and time_slot required' }, { status: 400 });
 
     const [entry] = await sql`
@@ -185,9 +185,9 @@ export async function POST(req: NextRequest) {
       `;
     }
 
-    if (Array.isArray(sub_activity_ids) && sub_activity_ids.length > 0) {
+    await sql.begin(async sql => {
       const entryId = entry.id as number;
-      await sql.begin(async sql => {
+      if (Array.isArray(sub_activity_ids) && sub_activity_ids.length > 0) {
         for (const subId of sub_activity_ids as number[]) {
           const labels = await sql`SELECT label FROM activity_sub_activities WHERE id = ${subId} AND is_active = 1`;
           if (labels.length > 0) {
@@ -197,8 +197,18 @@ export async function POST(req: NextRequest) {
             `;
           }
         }
-      });
-    }
+      }
+      if (Array.isArray(custom_sub_labels)) {
+        for (const label of custom_sub_labels as string[]) {
+          if (typeof label === 'string' && label.trim()) {
+            await sql`
+              INSERT INTO schedule_entry_sub_activities (entry_id, sub_activity_id, label, completed)
+              VALUES (${entryId}, null, ${label.trim()}, 0)
+            `;
+          }
+        }
+      }
+    });
 
     return NextResponse.json(entry, { status: 201 });
   } catch (e) {
