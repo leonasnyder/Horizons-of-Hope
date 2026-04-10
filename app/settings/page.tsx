@@ -1,7 +1,8 @@
 'use client';
 import { useState, useEffect, useRef } from 'react';
 import { useTheme } from 'next-themes';
-import { Sun, Moon, Monitor, Bell, Download, Upload, Trash2, Info, BookOpen, DatabaseBackup } from 'lucide-react';
+import { Sun, Moon, Monitor, Bell, Download, Upload, Trash2, Info, BookOpen, DatabaseBackup, Settings2 } from 'lucide-react';
+import TaskLibraryManager from '@/components/settings/TaskLibraryManager';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
@@ -38,6 +39,7 @@ export default function SettingsPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [backups, setBackups] = useState<{ id: number; label: string; created_at: string }[]>([]);
   const [backupRunning, setBackupRunning] = useState(false);
+  const [libraryManagerOpen, setLibraryManagerOpen] = useState(false);
 
   useEffect(() => {
     fetch('/api/settings').then(r => r.json()).then(setSettings).catch(() => {});
@@ -366,6 +368,15 @@ export default function SettingsPage() {
           </Button>
 
           <Button
+            id="settings-manage-library"
+            variant="outline"
+            className="w-full justify-start"
+            onClick={() => setLibraryManagerOpen(true)}
+          >
+            <Settings2 className="h-4 w-4 mr-2" /> Manage Task Library
+          </Button>
+
+          <Button
             id="settings-clear"
             variant="outline"
             className="w-full justify-start text-red-500 border-red-200 hover:bg-red-50 hover:border-red-300"
@@ -441,6 +452,8 @@ export default function SettingsPage() {
           <p className="text-xs">Built for Horizons of Hope · Runs fully offline</p>
         </CardContent>
       </Card>
+
+      <TaskLibraryManager open={libraryManagerOpen} onClose={() => setLibraryManagerOpen(false)} />
     </div>
   );
 }
