@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -29,6 +29,7 @@ export default function TaskLibraryManager({ open, onClose }: TaskLibraryManager
   const [newCatName, setNewCatName] = useState('');
   const [addingItemToCat, setAddingItemToCat] = useState<number | null>(null);
   const [newItemLabel, setNewItemLabel] = useState('');
+  const newItemInputRef = useRef<HTMLInputElement>(null);
 
   const fetchLibrary = async () => {
     setLoading(true);
@@ -94,8 +95,9 @@ export default function TaskLibraryManager({ open, onClose }: TaskLibraryManager
       });
       if (!res.ok) throw new Error();
       setNewItemLabel('');
-      setAddingItemToCat(null);
       await fetchLibrary();
+      // Keep the input open and refocus for rapid entry
+      setTimeout(() => newItemInputRef.current?.focus(), 50);
     } catch { toast.error('Failed to add task'); }
   };
 
@@ -228,10 +230,17 @@ export default function TaskLibraryManager({ open, onClose }: TaskLibraryManager
                     {addingItemToCat === cat.id ? (
                       <div className="flex items-center gap-2 px-4 py-2">
                         <Input
+                          ref={newItemInputRef}
                           value={newItemLabel}
                           onChange={e => setNewItemLabel(e.target.value)}
-                          onKeyDown={e => { if (e.key === 'Enter') addItem(cat.id); if (e.key === 'Escape') { setAddingItemToCat(null); setNewItemLabel(''); } }}
-                          placeholder="New task name..."
+                          onKeyDown={e => {
+                            if (e.key === 'Enter') {
+                              if (newItemLabel.trim()) addItem(cat.id);
+                              else { setAddingItemToCat(null); setNewItemLabel(''); }
+                            }
+                            if (e.key === 'Escape') { setAddingItemToCat(null); setNewItemLabel(''); }
+                          }}
+                          placeholder="New task name... (Enter to add, Enter on empty to close)"
                           className="h-7 text-sm"
                           autoFocus
                         />
