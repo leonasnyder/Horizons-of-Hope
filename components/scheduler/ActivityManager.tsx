@@ -508,16 +508,28 @@ export default function ActivityManager({ open, onClose }: ActivityManagerProps)
                           </Button>
                         </div>
                       ) : (
-                        <Button
-                          id={`activity-archive-${a.id}`}
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => archiveActivity(a)}
-                          className="text-gray-400 hover:text-red-500 flex-shrink-0"
-                          aria-label={`Archive ${a.name}`}
-                        >
-                          <Archive className="h-4 w-4" />
-                        </Button>
+                        <div className="flex items-center gap-1 flex-shrink-0">
+                          <Button
+                            id={`activity-archive-${a.id}`}
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => archiveActivity(a)}
+                            className="text-gray-400 hover:text-amber-500"
+                            aria-label={`Archive ${a.name}`}
+                          >
+                            <Archive className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            id={`activity-delete-${a.id}`}
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => deleteActivity(a)}
+                            className="text-gray-400 hover:text-red-500"
+                            aria-label={`Delete ${a.name}`}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
                       )}
                     </div>
                     {editingActivityId === a.id && (
