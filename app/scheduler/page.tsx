@@ -9,6 +9,7 @@ import ActivityManager from '@/components/scheduler/ActivityManager';
 import { Button } from '@/components/ui/button';
 import { CalendarDays, Calendar, Settings2 } from 'lucide-react';
 import { useActivityReminders } from '@/lib/hooks/useActivityReminders';
+import ActivityReminderBanner from '@/components/scheduler/ActivityReminderBanner';
 
 type ViewMode = 'day' | 'week';
 
@@ -18,10 +19,11 @@ export default function SchedulerPage() {
   const [activityManagerOpen, setActivityManagerOpen] = useState(false);
   const [weekRefreshKey, setWeekRefreshKey] = useState(0);
   const handleDayReset = useCallback(() => setWeekRefreshKey(k => k + 1), []);
-  useActivityReminders();
+  const { reminders, dismiss } = useActivityReminders();
 
   return (
     <div id="scheduler-page" className="max-w-7xl mx-auto p-4">
+      <ActivityReminderBanner reminders={reminders} onDismiss={dismiss} />
       <div className="flex flex-col lg:flex-row gap-6">
         {/* Sidebar */}
         <div id="scheduler-sidebar" className="lg:w-64 flex-shrink-0 space-y-4">
