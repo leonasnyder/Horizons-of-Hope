@@ -333,10 +333,17 @@ export default function DayView({ date, onReset }: DayViewProps) {
       // Dropped on an empty time slot
       targetTimeSlot = over.id.slice(5);
     } else {
-      // Dropped on another activity — move to its time slot
+      // Dropped on another activity
       const targetEntry = entries.find(e => e.id === over.id);
       if (!targetEntry) return;
-      targetTimeSlot = targetEntry.time_slot;
+      // If the target activity is above the dragged one, snap to its END time
+      // so the dragged card sits immediately after it (e.g. 9-10 → drop on it → land at 10:00)
+      const targetEndMin = timeToMinutes(targetEntry.time_slot) + targetEntry.duration_minutes;
+      if (timeToMinutes(targetEntry.time_slot) < timeToMinutes(draggedEntry.time_slot)) {
+        targetTimeSlot = minutesToSlot(targetEndMin);
+      } else {
+        targetTimeSlot = targetEntry.time_slot;
+      }
     }
 
     if (targetTimeSlot === draggedEntry.time_slot) return;
