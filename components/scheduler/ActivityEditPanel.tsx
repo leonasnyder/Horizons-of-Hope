@@ -69,8 +69,8 @@ export default function ActivityEditPanel({
   const [slots, setSlots] = useState<Array<{ time: string; duration: number; days: number[] }>>([
     { time: '09:00', duration: 30, days: ALL_DAYS },
   ]);
-  // Track original loaded slots to detect time/duration changes
-  const initialSlotsRef = useRef<Array<{ time: string; duration: number }>>([]);
+  // Track original loaded slots to detect time/duration/day changes
+  const initialSlotsRef = useRef<Array<{ time: string; duration: number; days: number[] }>>([]);
 
   useEffect(() => {
     fetch(`/api/activities/${activityId}`)
@@ -84,7 +84,7 @@ export default function ActivityEditPanel({
             days: parseDays(d.days_of_week),
           }));
           setSlots(loaded);
-          initialSlotsRef.current = loaded.map((s: { time: string; duration: number; days: number[] }) => ({ time: s.time, duration: s.duration }));
+          initialSlotsRef.current = loaded.map((s: { time: string; duration: number; days: number[] }) => ({ time: s.time, duration: s.duration, days: [...s.days] }));
         } else if (data) {
           setIsDefault(!!data.is_default);
         }
@@ -152,9 +152,12 @@ export default function ActivityEditPanel({
         for (let i = 0; i < slots.length; i++) {
           const orig = initialSlotsRef.current[i];
           const curr = slots[i];
-          const timeChanged = orig && curr.time !== orig.time;
-          const durChanged = orig && curr.duration !== orig.duration;
-          if (timeChanged || durChanged) {
+          if (!orig) continue;
+          const timeChanged = curr.time !== orig.time;
+          const durChanged = curr.duration !== orig.duration;
+          // Days that were removed from the schedule
+          const removedDays = orig.days.filter(d => !curr.days.includes(d));
+          if (timeChanged || durChanged || removedDays.length > 0) {
             await fetch('/api/schedule/update-future', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -163,6 +166,7 @@ export default function ActivityEditPanel({
                 from_date: today,
                 time_slot: timeChanged ? curr.time : undefined,
                 duration_minutes: durChanged ? curr.duration : undefined,
+                removed_days: removedDays.length > 0 ? removedDays : undefined,
               }),
             });
           }
@@ -452,7 +456,9 @@ export default function ActivityEditPanel({
       {/* Update future occurrences option — show when time/duration changed on a recurring activity */}
       {isDefault && slots.some((s, i) => {
         const orig = initialSlotsRef.current[i];
-        return orig && (s.time !== orig.time || s.duration !== orig.duration);
+        if (!orig) return false;
+        const daysChanged = orig.days.some(d => !s.days.includes(d)) || s.days.some(d => !orig.days.includes(d));
+        return s.time !== orig.time || s.duration !== orig.duration || daysChanged;
       }) && (
         <div className="rounded-lg border border-amber-200 bg-amber-50 dark:bg-amber-900/20 dark:border-amber-700 p-3">
           <div className="flex items-center gap-2 mb-2 text-sm font-medium text-amber-800 dark:text-amber-300">
