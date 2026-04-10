@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Plus, Archive, Search, RotateCcw, Tags, Edit2, Trash2, X, BookOpen } from 'lucide-react';
 import CategoryManager from './CategoryManager';
 import ActivityEditPanel from './ActivityEditPanel';
@@ -52,6 +52,7 @@ export default function ActivityManager({ open, onClose }: ActivityManagerProps)
   const [confirmDialog, setConfirmDialog] = useState<{
     title: string; message: string; onConfirm: () => void;
   } | null>(null);
+  const confirmOpenRef = useRef(false);
 
   const fetchActivities = () => {
     fetch('/api/activities?includeArchived=true')
@@ -90,6 +91,7 @@ export default function ActivityManager({ open, onClose }: ActivityManagerProps)
   };
 
   const archiveActivity = (a: Activity) => {
+    confirmOpenRef.current = true;
     setConfirmDialog({
       title: `Archive "${a.name}"?`,
       message: 'It will be hidden from new schedules but can be restored later.',
@@ -106,6 +108,7 @@ export default function ActivityManager({ open, onClose }: ActivityManagerProps)
   };
 
   const deleteActivity = (a: Activity) => {
+    confirmOpenRef.current = true;
     setConfirmDialog({
       title: `Delete "${a.name}"?`,
       message: 'This will permanently delete the activity and cannot be undone.',
@@ -193,7 +196,7 @@ export default function ActivityManager({ open, onClose }: ActivityManagerProps)
 
   return (
   <>
-    <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen && !confirmDialog) onClose(); }}>
+    <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen && !confirmOpenRef.current) onClose(); }}>
       <DialogContent id="activity-manager" className="max-w-2xl max-h-[90vh] flex flex-col">
         <DialogHeader>
           <div className="flex items-center justify-between gap-2">
@@ -564,15 +567,15 @@ export default function ActivityManager({ open, onClose }: ActivityManagerProps)
       onChanged={fetchCategories}
     />
 
-    <Dialog open={!!confirmDialog} onOpenChange={() => setConfirmDialog(null)}>
+    <Dialog open={!!confirmDialog} onOpenChange={() => { confirmOpenRef.current = false; setConfirmDialog(null); }}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{confirmDialog?.title}</DialogTitle>
           <DialogDescription>{confirmDialog?.message}</DialogDescription>
         </DialogHeader>
         <DialogFooter>
-          <Button variant="outline" onClick={() => setConfirmDialog(null)}>Cancel</Button>
-          <Button variant="destructive" onClick={() => { confirmDialog?.onConfirm(); setConfirmDialog(null); }}>Confirm</Button>
+          <Button variant="outline" onClick={() => { confirmOpenRef.current = false; setConfirmDialog(null); }}>Cancel</Button>
+          <Button variant="destructive" onClick={() => { confirmDialog?.onConfirm(); confirmOpenRef.current = false; setConfirmDialog(null); }}>Confirm</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
