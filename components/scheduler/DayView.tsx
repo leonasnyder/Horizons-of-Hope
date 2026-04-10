@@ -15,7 +15,7 @@ import EditEntryModal from './EditEntryModal';
 import AddActivityModal from './AddActivityModal';
 import PrintDayView from './PrintDayView';
 import { Button } from '@/components/ui/button';
-import { formatTime } from '@/lib/utils';
+import { formatTime, cn } from '@/lib/utils';
 import { ExportDayDocButton } from '@/components/shared/ExportButtons';
 import {
   Dialog, DialogContent, DialogHeader, DialogFooter, DialogTitle, DialogDescription,
