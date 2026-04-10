@@ -73,6 +73,9 @@ function DroppableSlot({ id, children }: { id: string; children: React.ReactNode
   );
 }
 
+// Module-level settings cache — survives re-renders and date changes
+let _settingsCache: { start: string; end: string } | null = null;
+
 export default function DayView({ date, refreshKey, onReset }: DayViewProps) {
   const [entries, setEntries] = useState<ScheduleEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -115,11 +118,19 @@ export default function DayView({ date, refreshKey, onReset }: DayViewProps) {
   useEffect(() => { fetchEntries(); }, [fetchEntries, refreshKey]);
 
   useEffect(() => {
+    if (_settingsCache) {
+      setScheduleStart(_settingsCache.start);
+      setScheduleEnd(_settingsCache.end);
+      return;
+    }
     fetch('/api/settings')
       .then(r => r.json())
       .then(s => {
-        if (s.schedule_start) setScheduleStart(s.schedule_start);
-        if (s.schedule_end) setScheduleEnd(s.schedule_end);
+        const start = s.schedule_start ?? '07:00';
+        const end = s.schedule_end ?? '22:00';
+        _settingsCache = { start, end };
+        setScheduleStart(start);
+        setScheduleEnd(end);
       })
       .catch(() => {});
   }, []);

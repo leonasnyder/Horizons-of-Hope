@@ -51,19 +51,18 @@ export async function GET(req: NextRequest) {
         const missing = defaults.filter(d => !scheduledIds.has(d.activity_id));
         if (missing.length > 0) {
           const weekStart = getWeekStart(new Date(date + 'T12:00:00'));
-          await sql.begin(async sql => {
-            for (const d of missing) {
-              await sql`
-                INSERT INTO schedule_entries (user_id, activity_id, date, time_slot, duration_minutes)
-                VALUES (${userId}, ${d.activity_id}, ${date}, ${d.default_time}, ${d.default_duration})
-              `;
-              await sql`
-                INSERT INTO activity_usage_log (user_id, activity_id, week_start, times_scheduled)
-                VALUES (${userId}, ${d.activity_id}, ${weekStart}, 1)
-                ON CONFLICT(user_id, activity_id, week_start) DO UPDATE SET times_scheduled = activity_usage_log.times_scheduled + 1
-              `;
-            }
-          });
+          const activityIds = missing.map(d => d.activity_id);
+          const times = missing.map(d => d.default_time);
+          const durations = missing.map(d => d.default_duration);
+          await sql`
+            INSERT INTO schedule_entries (user_id, activity_id, date, time_slot, duration_minutes)
+            SELECT ${userId}, unnest(${activityIds}::int[]), ${date}, unnest(${times}::text[]), unnest(${durations}::int[])
+          `;
+          await sql`
+            INSERT INTO activity_usage_log (user_id, activity_id, week_start, times_scheduled)
+            SELECT ${userId}, unnest(${activityIds}::int[]), ${weekStart}::date, 1
+            ON CONFLICT(user_id, activity_id, week_start) DO UPDATE SET times_scheduled = activity_usage_log.times_scheduled + 1
+          `;
         }
       }
 
@@ -95,34 +94,49 @@ export async function GET(req: NextRequest) {
 
         const cur = new Date(startDate + 'T12:00:00');
         const end = new Date(endDate + 'T12:00:00');
-        await sql.begin(async sql => {
-          while (cur <= end) {
-            const y = cur.getFullYear();
-            const mo = String(cur.getMonth() + 1).padStart(2, '0');
-            const dy = String(cur.getDate()).padStart(2, '0');
-            const dateStr = `${y}-${mo}-${dy}`;
-            const dayOfWeek = cur.getDay();
-            const dayDefaults = allDefaults.filter(d =>
-              !d.days_of_week || d.days_of_week.split(',').map(Number).includes(dayOfWeek)
-            );
-            const missing = dayDefaults.filter(d => !scheduledSet.has(`${dateStr}:${d.activity_id}`));
-            if (missing.length > 0) {
-              const weekStart = getWeekStart(new Date(dateStr + 'T12:00:00'));
-              for (const d of missing) {
-                await sql`
-                  INSERT INTO schedule_entries (user_id, activity_id, date, time_slot, duration_minutes)
-                  VALUES (${userId}, ${d.activity_id}, ${dateStr}, ${d.default_time}, ${d.default_duration})
-                `;
-                await sql`
-                  INSERT INTO activity_usage_log (user_id, activity_id, week_start, times_scheduled)
-                  VALUES (${userId}, ${d.activity_id}, ${weekStart}, 1)
-                  ON CONFLICT(user_id, activity_id, week_start) DO UPDATE SET times_scheduled = activity_usage_log.times_scheduled + 1
-                `;
-              }
+        // Collect all rows to insert across all days, then batch in 2 queries
+        const allEntries: Array<{ activityId: number; dateStr: string; time: string; duration: number }> = [];
+        const usageMap = new Map<string, { activityId: number; weekStart: string }>();
+
+        while (cur <= end) {
+          const y = cur.getFullYear();
+          const mo = String(cur.getMonth() + 1).padStart(2, '0');
+          const dy = String(cur.getDate()).padStart(2, '0');
+          const dateStr = `${y}-${mo}-${dy}`;
+          const dayOfWeek = cur.getDay();
+          const dayDefaults = allDefaults.filter(d =>
+            !d.days_of_week || d.days_of_week.split(',').map(Number).includes(dayOfWeek)
+          );
+          const missing = dayDefaults.filter(d => !scheduledSet.has(`${dateStr}:${d.activity_id}`));
+          if (missing.length > 0) {
+            const weekStart = getWeekStart(new Date(dateStr + 'T12:00:00'));
+            for (const d of missing) {
+              allEntries.push({ activityId: d.activity_id, dateStr, time: d.default_time, duration: d.default_duration });
+              const key = `${d.activity_id}:${weekStart}`;
+              if (!usageMap.has(key)) usageMap.set(key, { activityId: d.activity_id, weekStart });
             }
-            cur.setDate(cur.getDate() + 1);
           }
-        });
+          cur.setDate(cur.getDate() + 1);
+        }
+
+        if (allEntries.length > 0) {
+          const entryActIds = allEntries.map(r => r.activityId);
+          const entryDates = allEntries.map(r => r.dateStr);
+          const entryTimes = allEntries.map(r => r.time);
+          const entryDurs = allEntries.map(r => r.duration);
+          await sql`
+            INSERT INTO schedule_entries (user_id, activity_id, date, time_slot, duration_minutes)
+            SELECT ${userId}, unnest(${entryActIds}::int[]), unnest(${entryDates}::date[]), unnest(${entryTimes}::text[]), unnest(${entryDurs}::int[])
+          `;
+          const usageRows = Array.from(usageMap.values());
+          const logActIds = usageRows.map(r => r.activityId);
+          const logWeekStarts = usageRows.map(r => r.weekStart);
+          await sql`
+            INSERT INTO activity_usage_log (user_id, activity_id, week_start, times_scheduled)
+            SELECT ${userId}, unnest(${logActIds}::int[]), unnest(${logWeekStarts}::date[]), 1
+            ON CONFLICT(user_id, activity_id, week_start) DO UPDATE SET times_scheduled = activity_usage_log.times_scheduled + excluded.times_scheduled
+          `;
+        }
       }
 
       entries = await sql`
