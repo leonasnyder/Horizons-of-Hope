@@ -86,8 +86,11 @@ export async function DELETE(_req: NextRequest, { params }: { params: { id: stri
     const owned = await sql`SELECT id FROM activities WHERE id = ${id} AND user_id = ${userId}`;
     if (owned.length === 0) return NextResponse.json({ error: 'Not found' }, { status: 404 });
     await sql.begin(async sql => {
+      await sql`DELETE FROM activity_usage_log WHERE activity_id = ${id}`;
       await sql`DELETE FROM activity_defaults WHERE activity_id = ${id}`;
+      // schedule_entry_sub_activities already has ON DELETE SET NULL for sub_activity_id
       await sql`DELETE FROM activity_sub_activities WHERE activity_id = ${id}`;
+      await sql`UPDATE schedule_entries SET activity_id = NULL WHERE activity_id = ${id}`;
       await sql`DELETE FROM activities WHERE id = ${id}`;
     });
     return NextResponse.json({ success: true });

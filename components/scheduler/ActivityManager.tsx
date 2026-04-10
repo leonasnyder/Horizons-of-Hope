@@ -113,9 +113,13 @@ export default function ActivityManager({ open, onClose }: ActivityManagerProps)
       title: `Delete "${a.name}"?`,
       message: 'This will permanently delete the activity and cannot be undone.',
       onConfirm: async () => {
-        await fetch(`/api/activities/${a.id}`, { method: 'DELETE' });
-        fetchActivities();
-        toast.success(`${a.name} deleted`);
+        const res = await fetch(`/api/activities/${a.id}`, { method: 'DELETE' });
+        if (res.ok) {
+          fetchActivities();
+          toast.success(`${a.name} deleted`);
+        } else {
+          toast.error('Failed to delete activity');
+        }
       },
     });
   };
