@@ -340,7 +340,26 @@ export default function SettingsPage() {
               }
             }}
           >
-            <BookOpen className="h-4 w-4 mr-2" /> Set up Task Library
+            <BookOpen className="h-4 w-4 mr-2" /> Set up Task Library (Program)
+          </Button>
+
+          <Button
+            id="settings-seed-chores"
+            variant="outline"
+            className="w-full justify-start"
+            onClick={async () => {
+              try {
+                const res = await fetch('/api/task-library/seed-chores');
+                const data = await res.json();
+                if (data.success) toast.success(`Household chores added (${data.categories} categories)!`);
+                else if (data.message) toast.success('Household chores already added');
+                else toast.error('Seeding failed');
+              } catch {
+                toast.error('Seeding failed');
+              }
+            }}
+          >
+            <BookOpen className="h-4 w-4 mr-2" /> Add Household Chores to Library
           </Button>
 
           <Button
