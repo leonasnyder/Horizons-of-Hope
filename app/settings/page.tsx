@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect, useRef } from 'react';
 import { useTheme } from 'next-themes';
-import { Sun, Moon, Monitor, Bell, Download, Upload, Trash2, Info, BookOpen } from 'lucide-react';
+import { Sun, Moon, Monitor, Bell, Download, Upload, Trash2, Info, BookOpen, DatabaseBackup } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
@@ -36,9 +36,12 @@ export default function SettingsPage() {
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
   const [notifPermission, setNotifPermission] = useState<string>('default');
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [backups, setBackups] = useState<{ id: number; label: string; created_at: string }[]>([]);
+  const [backupRunning, setBackupRunning] = useState(false);
 
   useEffect(() => {
     fetch('/api/settings').then(r => r.json()).then(setSettings).catch(() => {});
+    fetch('/api/backups').then(r => r.json()).then(data => { if (Array.isArray(data)) setBackups(data); }).catch(() => {});
     if (typeof window !== 'undefined' && 'Notification' in window) {
       setNotifPermission(Notification.permission);
     }
@@ -370,6 +373,62 @@ export default function SettingsPage() {
           >
             <Trash2 className="h-4 w-4 mr-2" /> Clear all data
           </Button>
+        </CardContent>
+      </Card>
+
+      {/* Automatic Backups */}
+      <Card id="settings-backups">
+        <CardHeader><CardTitle className="flex items-center gap-2"><DatabaseBackup className="h-5 w-5 text-red-600" /> Automatic Backups</CardTitle></CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-xs text-gray-500">A full backup is saved automatically every night at midnight. The last 14 days are kept.</p>
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full justify-start"
+            disabled={backupRunning}
+            onClick={async () => {
+              setBackupRunning(true);
+              try {
+                const res = await fetch('/api/cron/backup');
+                const data = await res.json();
+                if (data.success) {
+                  toast.success('Backup saved!');
+                  fetch('/api/backups').then(r => r.json()).then(d => { if (Array.isArray(d)) setBackups(d); });
+                } else {
+                  toast.error('Backup failed');
+                }
+              } catch {
+                toast.error('Backup failed');
+              } finally {
+                setBackupRunning(false);
+              }
+            }}
+          >
+            <DatabaseBackup className="h-4 w-4 mr-2" />
+            {backupRunning ? 'Saving backup…' : 'Save backup now'}
+          </Button>
+          {backups.length > 0 && (
+            <div className="border rounded-lg divide-y">
+              {backups.map(b => (
+                <div key={b.id} className="flex items-center justify-between px-3 py-2">
+                  <div>
+                    <p className="text-sm font-medium">{b.label}</p>
+                    <p className="text-xs text-gray-400">{new Date(b.created_at).toLocaleString()}</p>
+                  </div>
+                  <a
+                    href={`/api/backups/${b.id}`}
+                    download
+                    className="text-xs text-red-600 hover:text-red-700 font-semibold flex items-center gap-1"
+                  >
+                    <Download className="h-3.5 w-3.5" /> Download
+                  </a>
+                </div>
+              ))}
+            </div>
+          )}
+          {backups.length === 0 && (
+            <p className="text-xs text-gray-400">No backups yet — click "Save backup now" to create one.</p>
+          )}
         </CardContent>
       </Card>
 
