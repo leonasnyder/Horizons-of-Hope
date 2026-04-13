@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { Plus, X, ChevronDown, ChevronRight, ArrowLeft, Trash2 } from 'lucide-react';
+import { Plus, X, ChevronDown, ChevronRight, ArrowLeft, Trash2, Sparkles, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface Activity { id: number; name: string; category: string | null; }
@@ -64,6 +64,10 @@ export default function AddActivityModal({ date, defaultSlot, onClose, onAdded }
   const [saveToList, setSaveToList] = useState(true);
   const [createError, setCreateError] = useState('');
   const [creating, setCreating] = useState(false);
+
+  // AI assist state
+  const [aiDescription, setAiDescription] = useState('');
+  const [aiLoading, setAiLoading] = useState(false);
 
   // Library for create mode
   const [createLibrarySelected, setCreateLibrarySelected] = useState<Set<string>>(new Set());
@@ -171,6 +175,37 @@ export default function AddActivityModal({ date, defaultSlot, onClose, onAdded }
       next.has(id) ? next.delete(id) : next.add(id);
       return next;
     });
+  };
+
+  const handleAiSuggest = async () => {
+    if (!aiDescription.trim()) { toast.error('Describe the activity first'); return; }
+    setAiLoading(true);
+    try {
+      const allLibraryLabels = libraryCategories.flatMap(c => c.items.map(i => i.label));
+      const res = await fetch('/api/ai/suggest-activity', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ description: aiDescription, libraryTags: allLibraryLabels }),
+      });
+      const data = await res.json();
+      if (!res.ok) { toast.error(data.error ?? 'AI suggestion failed'); return; }
+
+      if (data.name) setNewName(data.name);
+      if (data.duration) setNewDuration(String(data.duration));
+      if (Array.isArray(data.suggestedTags) && data.suggestedTags.length > 0) {
+        const matched = data.suggestedTags.filter((tag: string) => allLibraryLabels.includes(tag));
+        setCreateLibrarySelected(new Set(matched));
+        setNewSubActivities(prev => {
+          const existing = prev.filter(l => !allLibraryLabels.includes(l));
+          return [...existing, ...matched];
+        });
+      }
+      toast.success('AI suggestions applied!');
+    } catch {
+      toast.error('Could not reach AI — check your connection');
+    } finally {
+      setAiLoading(false);
+    }
   };
 
   const handleCreate = async () => {
@@ -442,6 +477,30 @@ export default function AddActivityModal({ date, defaultSlot, onClose, onAdded }
         {mode === 'create' && (
           <>
             <div className="space-y-4 py-2">
+
+              {/* AI Assist */}
+              <div className="rounded-xl border border-purple-200 dark:border-purple-800 bg-purple-50 dark:bg-purple-950/30 p-3">
+                <p className="text-xs font-semibold text-purple-700 dark:text-purple-400 flex items-center gap-1 mb-2">
+                  <Sparkles className="h-3.5 w-3.5" /> AI Assist
+                </p>
+                <div className="flex gap-2">
+                  <Input
+                    placeholder='Describe the activity, e.g. "morning hygiene routine"'
+                    value={aiDescription}
+                    onChange={e => setAiDescription(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleAiSuggest(); } }}
+                    className="text-sm bg-white dark:bg-gray-900"
+                  />
+                  <Button type="button" size="sm" onClick={handleAiSuggest} disabled={aiLoading}
+                    className="bg-purple-600 hover:bg-purple-700 text-white flex-shrink-0">
+                    {aiLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                  </Button>
+                </div>
+                <p className="text-xs text-purple-500 dark:text-purple-400 mt-1.5">
+                  AI will suggest a name, duration, and relevant library tags
+                </p>
+              </div>
+
               {/* Name + Category */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
