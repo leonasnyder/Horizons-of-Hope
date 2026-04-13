@@ -227,25 +227,29 @@ export default function ActivityCard({
         </div>
       </div>
 
-      {/* Sub-activities below — always full width, wraps on any screen size */}
+      {/* Sub-activities as chip-style tags */}
       {entry.entry_sub_activities.length > 0 && (
-        <div id={`entry-subactivities-${entry.id}`} className="flex flex-col gap-0.5 pl-[76px]">
+        <div id={`entry-subactivities-${entry.id}`} className="flex flex-wrap gap-1.5 pl-[76px] pt-0.5">
           {entry.entry_sub_activities.map(s => (
-            <label
+            <button
               key={s.id}
               id={`entry-subactivity-${s.id}`}
-              className="flex items-center gap-1.5 cursor-pointer min-h-[28px]"
+              type="button"
+              onClick={() => onToggleSubActivity(entry.id, s.id, s.completed ? 0 : 1)}
+              className={cn(
+                'inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium border transition-all',
+                s.completed
+                  ? 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 border-green-300 dark:border-green-700 line-through opacity-60'
+                  : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:border-red-400 hover:text-red-600'
+              )}
             >
-              <input
-                type="checkbox"
-                checked={!!s.completed}
-                onChange={e => onToggleSubActivity(entry.id, s.id, e.target.checked ? 1 : 0)}
-                className="h-4 w-4 rounded accent-red-600 flex-shrink-0"
-              />
-              <span className={`text-xs ${s.completed ? 'line-through text-gray-400' : 'text-gray-600 dark:text-gray-300'}`}>
-                {s.label}
-              </span>
-            </label>
+              {s.completed && (
+                <svg className="h-3 w-3 text-green-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                </svg>
+              )}
+              {s.label}
+            </button>
           ))}
         </div>
       )}

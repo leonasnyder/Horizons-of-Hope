@@ -25,6 +25,8 @@ export default function TopNav() {
     router.refresh();
   }
 
+  if (pathname === '/') return null;
+
   return (
     <header id="top-nav" className="sticky top-0 z-50 bg-black shadow-md">
       <div className="flex items-center justify-between px-4 h-16 max-w-7xl mx-auto">

@@ -41,16 +41,17 @@ export async function middleware(request: NextRequest) {
 
   const pathname = request.nextUrl.pathname;
   const isAuthPage = pathname === '/login' || pathname === '/signup' || pathname === '/forgot-password' || pathname === '/reset-password';
+  const isLandingPage = pathname === '/';
   const isApiRoute = pathname.startsWith('/api');
   const isPublicFile = pathname.includes('.');
 
-  // Redirect unauthenticated users to login (except auth pages, API, and static files)
-  if (!user && !isAuthPage && !isApiRoute && !isPublicFile) {
-    return NextResponse.redirect(new URL('/login', request.url));
+  // Redirect unauthenticated users to landing page (except auth pages, API, and static files)
+  if (!user && !isAuthPage && !isLandingPage && !isApiRoute && !isPublicFile) {
+    return NextResponse.redirect(new URL('/', request.url));
   }
 
-  // Redirect logged-in users away from login/signup
-  if (user && isAuthPage) {
+  // Redirect logged-in users from landing/login/signup to the app
+  if (user && (isAuthPage || isLandingPage)) {
     return NextResponse.redirect(new URL('/scheduler', request.url));
   }
 
