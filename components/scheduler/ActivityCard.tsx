@@ -241,7 +241,7 @@ export default function ActivityCard({
             >
               {/* Checkbox toggle */}
               <div className={cn(
-                'w-4 h-4 rounded-sm border-2 flex items-center justify-center flex-shrink-0 transition-colors',
+                'w-4 h-4 border-2 flex items-center justify-center flex-shrink-0 transition-colors',
                 s.completed
                   ? 'bg-green-500 border-green-500'
                   : 'border-gray-300 group-hover/sub:border-green-400'
