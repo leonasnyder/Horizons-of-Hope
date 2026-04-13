@@ -206,12 +206,13 @@ export default function AddActivityModal({ date, defaultSlot, onClose, onAdded }
                           isSelected ? prev.filter(id => id !== s.id) : [...prev, s.id]
                         )
                       }
+                      style={{ WebkitAppearance: 'none', appearance: 'none' }}
                       className={`
                         inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium
-                        border transition-all
+                        border transition-all cursor-pointer select-none
                         ${isSelected
                           ? 'bg-orange-500 text-white border-orange-500 shadow-sm'
-                          : 'bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:border-orange-400 hover:text-orange-600'
+                          : 'bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:border-orange-400 hover:text-orange-600 active:bg-gray-100'
                         }
                       `}
                     >
@@ -334,12 +335,13 @@ export default function AddActivityModal({ date, defaultSlot, onClose, onAdded }
                               key={item.id}
                               type="button"
                               onClick={() => toggleLibraryTag(item.label)}
+                              style={{ WebkitAppearance: 'none', appearance: 'none' }}
                               className={`
                                 inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium
-                                border transition-all
+                                border transition-all cursor-pointer select-none
                                 ${isSelected
                                   ? 'bg-red-600 text-white border-red-600 shadow-sm'
-                                  : 'bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:border-red-400 hover:text-red-600'
+                                  : 'bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:border-red-400 hover:text-red-600 active:bg-gray-100'
                                 }
                               `}
                             >

@@ -236,11 +236,12 @@ export default function ActivityCard({
               id={`entry-subactivity-${s.id}`}
               type="button"
               onClick={() => onToggleSubActivity(entry.id, s.id, s.completed ? 0 : 1)}
+              style={{ WebkitAppearance: 'none', appearance: 'none' }}
               className={cn(
-                'inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium border transition-all',
+                'inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium border transition-all cursor-pointer select-none',
                 s.completed
                   ? 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 border-green-300 dark:border-green-700 line-through opacity-60'
-                  : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:border-red-400 hover:text-red-600'
+                  : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:border-red-400 hover:text-red-600 active:bg-gray-100'
               )}
             >
               {s.completed && (
