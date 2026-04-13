@@ -14,6 +14,7 @@ import type { EntrySubActivity } from './ActivityCard';
 import EditEntryModal from './EditEntryModal';
 import AddActivityModal from './AddActivityModal';
 import PrintDayView from './PrintDayView';
+import ScheduleAssistant from './ScheduleAssistant';
 import { Button } from '@/components/ui/button';
 import { formatTime, cn } from '@/lib/utils';
 import { ExportDayDocButton } from '@/components/shared/ExportButtons';
@@ -703,6 +704,15 @@ export default function DayView({ date, refreshKey, onReset }: DayViewProps) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* AI Schedule Assistant — floating button + panel */}
+      {!isLocked && (
+        <ScheduleAssistant
+          date={date}
+          entries={entries}
+          onScheduleChanged={fetchEntries}
+        />
+      )}
     </div>
   );
 }
