@@ -46,6 +46,7 @@ export default function TopNav() {
           {[
             { href: '/scheduler', label: 'Daily Scheduler' },
             { href: '/tracker', label: 'Data Tracker' },
+            { href: '/tasks', label: 'PA Tasks' },
           ].map(({ href, label }) => (
             <Link
               key={href}
