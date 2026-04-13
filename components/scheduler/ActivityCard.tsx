@@ -227,9 +227,9 @@ export default function ActivityCard({
         </div>
       </div>
 
-      {/* Sub-activities as chip-style tags */}
+      {/* Sub-activities as checklist */}
       {entry.entry_sub_activities.length > 0 && (
-        <div id={`entry-subactivities-${entry.id}`} className="flex flex-wrap gap-1.5 pl-[76px] pt-0.5">
+        <div id={`entry-subactivities-${entry.id}`} className="flex flex-col gap-0.5 pl-[76px] pt-1">
           {entry.entry_sub_activities.map(s => (
             <button
               key={s.id}
@@ -237,19 +237,29 @@ export default function ActivityCard({
               type="button"
               onClick={() => onToggleSubActivity(entry.id, s.id, s.completed ? 0 : 1)}
               style={{ WebkitAppearance: 'none', appearance: 'none' }}
-              className={cn(
-                'inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium border transition-all cursor-pointer select-none',
-                s.completed
-                  ? 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 border-green-300 dark:border-green-700 line-through opacity-60'
-                  : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:border-red-400 hover:text-red-600 active:bg-gray-100'
-              )}
+              className="flex items-center gap-2 text-left cursor-pointer select-none group/sub w-full"
             >
-              {s.completed && (
-                <svg className="h-3 w-3 text-green-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                </svg>
-              )}
-              {s.label}
+              {/* Circle toggle */}
+              <div className={cn(
+                'w-4 h-4 rounded-full border flex items-center justify-center flex-shrink-0 transition-colors',
+                s.completed
+                  ? 'bg-green-500 border-green-500'
+                  : 'border-gray-300 group-hover/sub:border-green-400'
+              )}>
+                {s.completed && (
+                  <svg className="h-2.5 w-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                  </svg>
+                )}
+              </div>
+              <span className={cn(
+                'text-xs',
+                s.completed
+                  ? 'line-through text-gray-400 dark:text-gray-500'
+                  : 'text-gray-600 dark:text-gray-300 group-hover/sub:text-gray-800 dark:group-hover/sub:text-gray-100'
+              )}>
+                {s.label}
+              </span>
             </button>
           ))}
         </div>
