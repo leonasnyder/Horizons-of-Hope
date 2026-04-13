@@ -65,6 +65,8 @@ export default function WeekView({ selectedDate, refreshKey, onSelectDay }: Week
 
   useEffect(() => { fetchWeek(); }, [fetchWeek, refreshKey]);
 
+  const [resettingWeek, setResettingWeek] = useState(false);
+
   const resetDay = async (dateStr: string) => {
     if (!window.confirm(`Reset ${format(parseISO(dateStr), 'EEEE')} to default activities?`)) return;
     try {
@@ -74,6 +76,24 @@ export default function WeekView({ selectedDate, refreshKey, onSelectDay }: Week
       toast.success('Day reset to defaults');
     } catch {
       toast.error('Failed to reset day');
+    }
+  };
+
+  const resetWeek = async () => {
+    if (!window.confirm(`Reset all 7 days this week to default activities? This will clear any custom changes you've made.`)) return;
+    setResettingWeek(true);
+    try {
+      await Promise.all(
+        days.map(day =>
+          fetch(`/api/schedule?date=${format(day, 'yyyy-MM-dd')}`, { method: 'DELETE' })
+        )
+      );
+      fetchWeek();
+      toast.success('Whole week reset to defaults');
+    } catch {
+      toast.error('Failed to reset week');
+    } finally {
+      setResettingWeek(false);
     }
   };
 
@@ -113,6 +133,19 @@ export default function WeekView({ selectedDate, refreshKey, onSelectDay }: Week
             <ChevronRight className="h-4 w-4" />
           </Button>
         </div>
+        <Button
+          id="week-view-reset"
+          variant="outline"
+          size="sm"
+          onClick={resetWeek}
+          disabled={resettingWeek}
+          title="Reset all days this week to default activities"
+        >
+          {resettingWeek
+            ? <><Loader2 className="h-4 w-4 mr-1 animate-spin" /> Resetting...</>
+            : <><RefreshCw className="h-4 w-4 mr-1" /> Reset Week</>
+          }
+        </Button>
         <Button id="week-view-print" variant="outline" size="sm" onClick={handlePrint}>
           <Printer className="h-4 w-4 mr-1" /> Print Week
         </Button>
