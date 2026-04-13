@@ -239,9 +239,9 @@ export default function ActivityCard({
               style={{ WebkitAppearance: 'none', appearance: 'none' }}
               className="flex items-center gap-2 text-left cursor-pointer select-none group/sub w-full"
             >
-              {/* Circle toggle */}
+              {/* Checkbox toggle */}
               <div className={cn(
-                'w-4 h-4 rounded-full border flex items-center justify-center flex-shrink-0 transition-colors',
+                'w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 transition-colors',
                 s.completed
                   ? 'bg-green-500 border-green-500'
                   : 'border-gray-300 group-hover/sub:border-green-400'
