@@ -6,3 +6,4 @@ data/
 public/sw.js
 public/workbox-*.js
 *.png
+.vercel
