@@ -41,8 +41,7 @@ export const TASK_LIBRARY_SEED: TaskLibrarySeedCategory[] = [
       'Defrost freezer items', 'Restock pantry staples',
       // Specific meals
       'Make a sandwich', 'Make lunch', 'Cook dinner', 'Bake brownies',
-      'Make beanie weenie', 'Make a teriyaki chicken sandwich', 'Make a turkey bacon sandwich',
-      'Microwave directions', 'Air fryer directions', 'Buy lunch',
+      'Follow microwave directions', 'Follow air fryer directions', 'Buy lunch',
     ],
   },
   {
@@ -126,8 +125,6 @@ export const TASK_LIBRARY_SEED: TaskLibrarySeedCategory[] = [
       'Check transit schedule', 'Prep transit card / cash', 'Leave on time',
       'Carry ID and emergency card', 'Complete errands', 'Return home on time',
       'Report any outing concerns',
-      // Existing volunteer sub-activities
-      'Sektor', 'Horses',
     ],
   },
   {
@@ -212,7 +209,7 @@ export const TASK_LIBRARY_SEED: TaskLibrarySeedCategory[] = [
       'Cook or bake together', 'Bonfire / cookout', 'Karaoke', 'Video games',
       'Craft / DIY project', 'Try a new restaurant', 'Road trip', 'Day trip',
       'Spa day at home', 'Start a new hobby', 'YouTube', 'Nap', 'Snack', 'Walk',
-      'Horse ranch', 'Beach day',
+      'Beach day',
     ],
   },
   {
