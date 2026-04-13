@@ -1,6 +1,6 @@
 'use client';
 import React, { useState, useRef, useCallback } from 'react';
-import { Check, GripVertical, Trash2, Edit2 } from 'lucide-react';
+import { Check, GripVertical, Trash2, Edit2, Circle, CheckCircle2 } from 'lucide-react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { cn, formatTime } from '@/lib/utils';
@@ -239,19 +239,11 @@ export default function ActivityCard({
               style={{ WebkitAppearance: 'none', appearance: 'none' }}
               className="flex items-center gap-2 text-left cursor-pointer select-none group/sub w-full"
             >
-              {/* Checkbox toggle */}
-              <div className={cn(
-                'w-4 h-4 border-2 flex items-center justify-center flex-shrink-0 transition-colors',
-                s.completed
-                  ? 'bg-green-500 border-green-500'
-                  : 'border-gray-300 group-hover/sub:border-green-400'
-              )}>
-                {s.completed && (
-                  <svg className="h-2.5 w-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                  </svg>
-                )}
-              </div>
+              {/* Circle toggle */}
+              {s.completed
+                ? <CheckCircle2 className="h-4 w-4 text-green-500 flex-shrink-0" />
+                : <Circle className="h-4 w-4 text-gray-300 flex-shrink-0 group-hover/sub:text-green-400 transition-colors" />
+              }
               <span className={cn(
                 'text-xs',
                 s.completed
