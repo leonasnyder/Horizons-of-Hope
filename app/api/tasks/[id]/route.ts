@@ -6,7 +6,7 @@ export const dynamic = 'force-dynamic';
 
 // PATCH /api/tasks/[id] — update title, notes, or completion
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
-  const { user, errorResponse } = await requireUser();
+  const { userId, errorResponse } = await requireUser();
   if (errorResponse) return errorResponse;
 
   const id = parseInt(params.id);
@@ -29,7 +29,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   const [task] = await sql`
     UPDATE pa_tasks
     SET ${sql(updates)}
-    WHERE id = ${id} AND user_id = ${user.id}
+    WHERE id = ${id} AND user_id = ${userId}
     RETURNING id, title, notes, is_completed, completed_at, created_at
   `;
 
@@ -39,12 +39,12 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 
 // DELETE /api/tasks/[id]
 export async function DELETE(_req: NextRequest, { params }: { params: { id: string } }) {
-  const { user, errorResponse } = await requireUser();
+  const { userId, errorResponse } = await requireUser();
   if (errorResponse) return errorResponse;
 
   const id = parseInt(params.id);
   if (isNaN(id)) return NextResponse.json({ error: 'Invalid id' }, { status: 400 });
 
-  await sql`DELETE FROM pa_tasks WHERE id = ${id} AND user_id = ${user.id}`;
+  await sql`DELETE FROM pa_tasks WHERE id = ${id} AND user_id = ${userId}`;
   return new NextResponse(null, { status: 204 });
 }
