@@ -6,6 +6,7 @@ import CalendarWidget from '@/components/shared/CalendarWidget';
 import DayView from '@/components/scheduler/DayView';
 import WeekView from '@/components/scheduler/WeekView';
 import ActivityManager from '@/components/scheduler/ActivityManager';
+import DayNotes from '@/components/scheduler/DayNotes';
 import { Button } from '@/components/ui/button';
 import { CalendarDays, Calendar, Settings2, RefreshCw } from 'lucide-react';
 import { useActivityReminders } from '@/lib/hooks/useActivityReminders';
@@ -111,6 +112,13 @@ export default function SchedulerPage() {
                 setViewMode('day');
               }}
             />
+          )}
+
+          {/* Day Notes — shown in day view only */}
+          {viewMode === 'day' && (
+            <div className="mt-4">
+              <DayNotes date={selectedDate} />
+            </div>
           )}
         </div>
       </div>
