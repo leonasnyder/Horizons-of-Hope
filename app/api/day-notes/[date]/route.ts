@@ -25,7 +25,8 @@ export async function GET(
     return NextResponse.json({ content: '', updated_at: null });
   }
 
-  return NextResponse.json((rows as Array<{ content: string; updated_at: string }>)[0]);
+  const row = (rows as unknown as Array<{ content: string; updated_at: string }>)[0];
+  return NextResponse.json(row);
 }
 
 // PATCH /api/day-notes/[date] — upsert note for a date
