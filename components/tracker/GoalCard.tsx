@@ -1,6 +1,6 @@
 'use client';
-import { useState, useEffect } from 'react';
-import { ChevronDown, ChevronUp, MessageSquare, Save } from 'lucide-react';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { ChevronDown, ChevronUp, MessageSquare, Check, Loader2 } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell
 } from 'recharts';
@@ -41,24 +41,106 @@ interface GoalCardProps {
   onResponseAdded: () => void;
 }
 
+type NoteSaveState = 'idle' | 'saving' | 'saved' | 'error';
+
 export default function GoalCard({ goal, date, responses, onResponseAdded }: GoalCardProps) {
   const [expanded, setExpanded] = useState(true);
   const [sessionNote, setSessionNote] = useState('');
-  const [savedNote, setSavedNote] = useState('');
-  const [savingNote, setSavingNote] = useState(false);
+  const [noteSaveState, setNoteSaveState] = useState<NoteSaveState>('idle');
   const [editingResponse, setEditingResponse] = useState<Response | null>(null);
 
+  // Refs used for auto-save debounce (matches the pattern used by DayNotes)
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastSavedRef = useRef('');
+  const savedIndicatorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Load existing note whenever goal/date changes. Always reset the
+  // local state — including to empty — so switching dates doesn't leak
+  // the previous date's note into the new one.
   useEffect(() => {
+    let cancelled = false;
     fetch(`/api/goals/session-notes?goal_id=${goal.id}&date=${date}`)
       .then(r => r.json())
       .then(data => {
-        if (data.notes) {
-          setSessionNote(data.notes);
-          setSavedNote(data.notes);
-        }
+        if (cancelled) return;
+        const text = typeof data.notes === 'string' ? data.notes : '';
+        setSessionNote(text);
+        lastSavedRef.current = text;
+        setNoteSaveState('idle');
       })
-      .catch(() => {});
+      .catch(() => {
+        if (cancelled) return;
+        setSessionNote('');
+        lastSavedRef.current = '';
+      });
+    return () => { cancelled = true; };
   }, [goal.id, date]);
+
+  // Persist notes — called from both the debounced auto-save path and
+  // the unmount/visibility-change "flush" path.
+  const persistNote = useCallback(async (text: string) => {
+    if (text === lastSavedRef.current) return;
+    setNoteSaveState('saving');
+    try {
+      const res = await fetch('/api/goals/session-notes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ goal_id: goal.id, date, notes: text }),
+      });
+      if (!res.ok) throw new Error();
+      lastSavedRef.current = text;
+      setNoteSaveState('saved');
+      if (savedIndicatorTimerRef.current) clearTimeout(savedIndicatorTimerRef.current);
+      savedIndicatorTimerRef.current = setTimeout(() => setNoteSaveState('idle'), 2000);
+    } catch {
+      setNoteSaveState('error');
+    }
+  }, [goal.id, date]);
+
+  // Auto-save with 1s debounce whenever the note changes.
+  useEffect(() => {
+    if (sessionNote === lastSavedRef.current) return;
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(() => { persistNote(sessionNote); }, 1000);
+    return () => {
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    };
+  }, [sessionNote, persistNote]);
+
+  // Best-effort flush on unmount & when the tab is hidden so notes aren't
+  // lost if the user navigates away or closes the tab within the 1s debounce.
+  useEffect(() => {
+    const flush = () => {
+      if (sessionNote === lastSavedRef.current) return;
+      const body = JSON.stringify({ goal_id: goal.id, date, notes: sessionNote });
+      if (typeof navigator !== 'undefined' && 'sendBeacon' in navigator) {
+        try {
+          navigator.sendBeacon(
+            '/api/goals/session-notes',
+            new Blob([body], { type: 'application/json' })
+          );
+          lastSavedRef.current = sessionNote;
+          return;
+        } catch { /* fall through to fetch */ }
+      }
+      // Fallback — keepalive fetch so the request survives page teardown.
+      fetch('/api/goals/session-notes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body,
+        keepalive: true,
+      }).catch(() => {});
+    };
+    const onVisibilityChange = () => { if (document.visibilityState === 'hidden') flush(); };
+    window.addEventListener('pagehide', flush);
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    return () => {
+      window.removeEventListener('pagehide', flush);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+      flush();
+      if (savedIndicatorTimerRef.current) clearTimeout(savedIndicatorTimerRef.current);
+    };
+  }, [sessionNote, goal.id, date]);
 
   const correct = responses.filter(r => r.response_type === 'correct').length;
   const incorrect = responses.filter(r => r.response_type === 'incorrect').length;
@@ -87,24 +169,6 @@ export default function GoalCard({ goal, date, responses, onResponseAdded }: Goa
       );
     } catch {
       toast.error('Failed to log response');
-    }
-  };
-
-  const handleSaveNote = async () => {
-    setSavingNote(true);
-    try {
-      const res = await fetch('/api/goals/session-notes', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ goal_id: goal.id, date, notes: sessionNote }),
-      });
-      if (!res.ok) throw new Error();
-      setSavedNote(sessionNote);
-      toast.success('Session note saved');
-    } catch {
-      toast.error('Failed to save note');
-    } finally {
-      setSavingNote(false);
     }
   };
 
@@ -221,21 +285,28 @@ export default function GoalCard({ goal, date, responses, onResponseAdded }: Goa
             />
           </div>
 
-          {/* Session note */}
+          {/* Session note (auto-saves) */}
           <div id={`goal-card-note-${goal.id}`} className="space-y-1.5">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-1.5">
                 <MessageSquare className="h-3.5 w-3.5 text-gray-400" aria-hidden="true" />
                 <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Session Notes</span>
               </div>
-              <button
-                onClick={handleSaveNote}
-                disabled={savingNote || sessionNote === savedNote}
-                className="flex items-center gap-1 text-xs px-2.5 py-1 rounded-lg bg-gray-700 hover:bg-gray-600 text-white disabled:opacity-40 transition-colors"
-              >
-                <Save className="h-3 w-3" />
-                {savingNote ? 'Saving...' : sessionNote === savedNote && savedNote ? 'Saved' : 'Save'}
-              </button>
+              <div className="text-xs" aria-live="polite">
+                {noteSaveState === 'saving' && (
+                  <span className="flex items-center gap-1 text-gray-400">
+                    <Loader2 className="h-3 w-3 animate-spin" /> Saving…
+                  </span>
+                )}
+                {noteSaveState === 'saved' && (
+                  <span className="flex items-center gap-1 text-green-500">
+                    <Check className="h-3 w-3" /> Saved
+                  </span>
+                )}
+                {noteSaveState === 'error' && (
+                  <span className="text-red-500">Save failed</span>
+                )}
+              </div>
             </div>
             <textarea
               id={`goal-session-note-${goal.id}`}

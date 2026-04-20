@@ -1,5 +1,5 @@
 'use client';
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback } from 'react';
 import { format } from 'date-fns';
 import DatePicker from '@/components/shared/DatePicker';
 import CalendarWidget from '@/components/shared/CalendarWidget';
@@ -12,6 +12,7 @@ import { CalendarDays, Calendar, Settings2, RefreshCw, Clock, RotateCcw } from '
 import { useActivityReminders } from '@/lib/hooks/useActivityReminders';
 import ActivityReminderBanner from '@/components/scheduler/ActivityReminderBanner';
 import { usePullToRefresh, PULL_THRESHOLD } from '@/lib/hooks/usePullToRefresh';
+import { useStopwatch } from '@/lib/stopwatch-context';
 
 type ViewMode = 'day' | 'week';
 
@@ -39,36 +40,17 @@ export default function SchedulerPage() {
   const [dayRefreshKey, setDayRefreshKey] = useState(0);
   const handleDayReset = useCallback(() => setWeekRefreshKey(k => k + 1), []);
 
-  // --- Stopwatch ---
-  const [elapsed, setElapsed] = useState(0);
-  const [running, setRunning] = useState(false);
-  const [timerLabel, setTimerLabel] = useState('');
-  const [splits, setSplits] = useState<{label: string; dur: number}[]>([]);
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const startRef = useRef(0);
-  const baseRef = useRef(0);
-
-  useEffect(() => {
-    if (running) {
-      startRef.current = Date.now();
-      intervalRef.current = setInterval(() => {
-        setElapsed(Math.floor((Date.now() - startRef.current) / 1000) + baseRef.current);
-      }, 200);
-    } else {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-    }
-    return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
-  }, [running]);
-
-  const timerStart = () => { baseRef.current = elapsed; setRunning(true); };
-  const timerStop = () => {
-    setRunning(false);
-    const final = Math.floor((Date.now() - startRef.current) / 1000) + baseRef.current;
-    setElapsed(final);
-    baseRef.current = final;
-    if (final > 0) setSplits(p => [{label: timerLabel.trim() || 'Activity', dur: final}, ...p.slice(0,4)]);
-  };
-  const timerReset = () => { setRunning(false); setElapsed(0); baseRef.current = 0; setTimerLabel(''); setSplits([]); };
+  // --- Stopwatch (persisted across navigation via context + localStorage) ---
+  const {
+    elapsed,
+    running,
+    label: timerLabel,
+    splits,
+    start: timerStart,
+    stop: timerStop,
+    reset: timerReset,
+    setLabel: setTimerLabel,
+  } = useStopwatch();
 
   const handlePullRefresh = useCallback(() => {
     if (viewMode === 'day') setDayRefreshKey(k => k + 1);

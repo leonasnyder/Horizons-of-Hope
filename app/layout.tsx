@@ -4,6 +4,7 @@ import './globals.css';
 import { ThemeProvider } from 'next-themes';
 import TopNav from '@/components/layout/TopNav';
 import { Toaster } from 'sonner';
+import { StopwatchProvider } from '@/lib/stopwatch-context';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 
@@ -30,13 +31,15 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body className="min-h-screen bg-background font-sans antialiased">
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-          <div id="app-root" className="flex flex-col min-h-screen">
-            <TopNav />
-            <main id="app-main" className="flex-1 overflow-auto">
-              {children}
-            </main>
-          </div>
-          <Toaster richColors position="top-right" />
+          <StopwatchProvider>
+            <div id="app-root" className="flex flex-col min-h-screen">
+              <TopNav />
+              <main id="app-main" className="flex-1 overflow-auto">
+                {children}
+              </main>
+            </div>
+            <Toaster richColors position="top-right" />
+          </StopwatchProvider>
         </ThemeProvider>
       </body>
     </html>
