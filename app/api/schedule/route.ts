@@ -5,6 +5,22 @@ import { requireUser } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
+// Self-heal the activity_defaults.days_of_week column. The app has
+// assumed this column exists for a while, but it was never in the
+// committed schema. Without it, every recurring activity is treated
+// as "every day" and partial-week patterns (like M-Thu) silently
+// expand to 7 days. Safe no-op once the column is present.
+let _daysOfWeekEnsured = false;
+async function ensureDaysOfWeekColumn() {
+  if (_daysOfWeekEnsured) return;
+  try {
+    await sql`ALTER TABLE activity_defaults ADD COLUMN IF NOT EXISTS days_of_week TEXT`;
+  } catch {
+    // ignore — column exists or perms missing
+  }
+  _daysOfWeekEnsured = true;
+}
+
 async function attachSubActivities(entries: Record<string, unknown>[]): Promise<Record<string, unknown>[]> {
   if (entries.length === 0) return entries;
   const ids = entries.map(e => e.id as number);
@@ -22,6 +38,7 @@ export async function GET(req: NextRequest) {
   const { userId, errorResponse } = await requireUser();
   if (errorResponse) return errorResponse;
   try {
+    await ensureDaysOfWeekColumn();
     const { searchParams } = new URL(req.url);
     const date = searchParams.get('date');
     const startDate = searchParams.get('startDate');

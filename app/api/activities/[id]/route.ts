@@ -4,6 +4,19 @@ import { requireUser } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
+// Self-heal: activity_defaults.days_of_week was assumed by the app
+// code but never committed to schema.sql.
+let _daysOfWeekEnsured = false;
+async function ensureDaysOfWeekColumn() {
+  if (_daysOfWeekEnsured) return;
+  try {
+    await sql`ALTER TABLE activity_defaults ADD COLUMN IF NOT EXISTS days_of_week TEXT`;
+  } catch {
+    // ignore
+  }
+  _daysOfWeekEnsured = true;
+}
+
 export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
   const { userId, errorResponse } = await requireUser();
   if (errorResponse) return errorResponse;
@@ -22,6 +35,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   const { userId, errorResponse } = await requireUser();
   if (errorResponse) return errorResponse;
   try {
+    await ensureDaysOfWeekColumn();
     const body = await req.json();
     const id = Number(params.id);
 

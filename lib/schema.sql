@@ -5,10 +5,13 @@
 
 CREATE TABLE IF NOT EXISTS categories (
   id SERIAL PRIMARY KEY,
-  name TEXT NOT NULL UNIQUE,
+  user_id UUID,
+  name TEXT NOT NULL,
   color TEXT DEFAULT '#6B7280',
-  sort_order INTEGER DEFAULT 0
+  sort_order INTEGER DEFAULT 0,
+  UNIQUE(user_id, name)
 );
+CREATE INDEX IF NOT EXISTS idx_categories_user_id ON categories(user_id);
 
 CREATE TABLE IF NOT EXISTS activities (
   id SERIAL PRIMARY KEY,
@@ -25,7 +28,8 @@ CREATE TABLE IF NOT EXISTS activity_defaults (
   id SERIAL PRIMARY KEY,
   activity_id INTEGER NOT NULL REFERENCES activities(id),
   default_time TEXT NOT NULL,
-  default_duration INTEGER DEFAULT 30
+  default_duration INTEGER DEFAULT 30,
+  days_of_week TEXT  -- comma-separated day numbers (0=Sun..6=Sat); NULL = every day
 );
 
 CREATE TABLE IF NOT EXISTS schedule_entries (

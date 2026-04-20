@@ -4,6 +4,20 @@ import { requireUser } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
+// Self-heal: activity_defaults.days_of_week was assumed by the app
+// code but never committed to schema.sql. Make sure it exists before
+// any INSERT/UPDATE that references it.
+let _daysOfWeekEnsured = false;
+async function ensureDaysOfWeekColumn() {
+  if (_daysOfWeekEnsured) return;
+  try {
+    await sql`ALTER TABLE activity_defaults ADD COLUMN IF NOT EXISTS days_of_week TEXT`;
+  } catch {
+    // ignore
+  }
+  _daysOfWeekEnsured = true;
+}
+
 export async function GET(req: NextRequest) {
   const { userId, errorResponse } = await requireUser();
   if (errorResponse) return errorResponse;
@@ -23,6 +37,7 @@ export async function POST(req: NextRequest) {
   const { userId, errorResponse } = await requireUser();
   if (errorResponse) return errorResponse;
   try {
+    await ensureDaysOfWeekColumn();
     const body = await req.json();
     const { name, description, category, color, is_default, default_time, default_duration, days_of_week, defaults } = body;
     if (!name) return NextResponse.json({ error: 'name is required' }, { status: 400 });
