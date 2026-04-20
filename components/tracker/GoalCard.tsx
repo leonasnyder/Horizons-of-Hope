@@ -87,12 +87,24 @@ export default function GoalCard({ goal, date, responses, onResponseAdded }: Goa
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ goal_id: goal.id, date, notes: text }),
       });
-      if (!res.ok) throw new Error();
+      if (!res.ok) {
+        // Try to extract server error to surface to the user.
+        let detail = `HTTP ${res.status}`;
+        try {
+          const body = await res.json();
+          if (body?.error) detail = String(body.error);
+        } catch { /* non-JSON response */ }
+        throw new Error(detail);
+      }
       lastSavedRef.current = text;
       setNoteSaveState('saved');
       if (savedIndicatorTimerRef.current) clearTimeout(savedIndicatorTimerRef.current);
       savedIndicatorTimerRef.current = setTimeout(() => setNoteSaveState('idle'), 2000);
-    } catch {
+    } catch (e) {
+      console.error('[goal-note save failed]', e);
+      toast.error(
+        `Couldn't save note: ${e instanceof Error ? e.message : String(e)}`
+      );
       setNoteSaveState('error');
     }
   }, [goal.id, date]);
