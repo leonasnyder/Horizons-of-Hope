@@ -4,6 +4,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from 'react';
@@ -13,13 +14,12 @@ import {
  *
  * This lives in a React Context mounted in the root layout so that
  * the timer is NOT unmounted when the user navigates between pages
- * (Scheduler -> Tracker -> Tasks -> Settings etc.).  State is also
- * mirrored to localStorage so the timer survives a full page refresh
- * or the app being reopened later in the day.
+ * (Scheduler -> Tracker -> Tasks -> Settings etc.). State is also
+ * mirrored to localStorage so the timer survives a full page refresh.
  *
  * Elapsed time is computed from a monotonic timestamp (`runSinceMs`)
- * + an accumulated base (`baseSecs`).  When running, "now - runSinceMs"
- * is added to baseSecs on every tick.  This avoids drift and keeps the
+ * + an accumulated base (`baseSecs`). When running, "now - runSinceMs"
+ * is added to baseSecs on every tick. This avoids drift and keeps the
  * clock accurate even if the tab was backgrounded.
  */
 
@@ -42,28 +42,47 @@ interface StopwatchState {
 const STORAGE_KEY = 'hoh:stopwatch:v1';
 
 interface PersistShape {
-  baseSecs: number;      // accumulated seconds that finished before current run
-  runSinceMs: number | null; // ms timestamp when current run started (null if paused)
+  baseSecs: number;
+  runSinceMs: number | null;
   label: string;
   splits: Split[];
 }
 
+const DEFAULT_STATE: PersistShape = {
+  baseSecs: 0,
+  runSinceMs: null,
+  label: '',
+  splits: [],
+};
+
 function loadPersisted(): PersistShape {
-  if (typeof window === 'undefined') {
-    return { baseSecs: 0, runSinceMs: null, label: '', splits: [] };
-  }
+  if (typeof window === 'undefined') return DEFAULT_STATE;
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return { baseSecs: 0, runSinceMs: null, label: '', splits: [] };
-    const parsed = JSON.parse(raw) as Partial<PersistShape>;
+    if (!raw) return DEFAULT_STATE;
+    const parsed = JSON.parse(raw) as Partial<PersistShape> | null;
+    if (!parsed || typeof parsed !== 'object') return DEFAULT_STATE;
     return {
-      baseSecs: typeof parsed.baseSecs === 'number' ? parsed.baseSecs : 0,
-      runSinceMs: typeof parsed.runSinceMs === 'number' ? parsed.runSinceMs : null,
+      baseSecs: typeof parsed.baseSecs === 'number' && Number.isFinite(parsed.baseSecs)
+        ? Math.max(0, Math.floor(parsed.baseSecs))
+        : 0,
+      runSinceMs: typeof parsed.runSinceMs === 'number' && Number.isFinite(parsed.runSinceMs)
+        ? parsed.runSinceMs
+        : null,
       label: typeof parsed.label === 'string' ? parsed.label : '',
-      splits: Array.isArray(parsed.splits) ? parsed.splits.slice(0, 5) : [],
+      splits: Array.isArray(parsed.splits)
+        ? parsed.splits
+            .filter((s): s is Split =>
+              !!s && typeof s === 'object'
+              && typeof (s as Split).label === 'string'
+              && typeof (s as Split).dur === 'number'
+              && Number.isFinite((s as Split).dur)
+            )
+            .slice(0, 5)
+        : [],
     };
   } catch {
-    return { baseSecs: 0, runSinceMs: null, label: '', splits: [] };
+    return DEFAULT_STATE;
   }
 }
 
@@ -79,18 +98,21 @@ function savePersisted(state: PersistShape) {
 const StopwatchContext = createContext<StopwatchState | null>(null);
 
 export function StopwatchProvider({ children }: { children: React.ReactNode }) {
-  // Authoritative state, mirrored to localStorage on every change.
-  const [baseSecs, setBaseSecs] = useState(0);
-  const [runSinceMs, setRunSinceMs] = useState<number | null>(null);
-  const [label, setLabelState] = useState('');
-  const [splits, setSplits] = useState<Split[]>([]);
+  // Authoritative state, mirrored to localStorage after hydration.
+  // Always start with DEFAULT_STATE so the server-rendered HTML and
+  // the first client render match (avoids React hydration errors).
+  const [baseSecs, setBaseSecs] = useState<number>(DEFAULT_STATE.baseSecs);
+  const [runSinceMs, setRunSinceMs] = useState<number | null>(DEFAULT_STATE.runSinceMs);
+  const [label, setLabelState] = useState<string>(DEFAULT_STATE.label);
+  const [splits, setSplits] = useState<Split[]>(DEFAULT_STATE.splits);
 
-  // Tick counter used only to re-render while running — elapsed is
-  // recomputed from timestamps each render.
+  // Ticker — bumps a counter while running so `elapsed` is recomputed.
   const [, setTick] = useState(0);
   const hydratedRef = useRef(false);
+  const labelRef = useRef(label);
+  useEffect(() => { labelRef.current = label; }, [label]);
 
-  // Hydrate from localStorage once on mount (client only).
+  // Hydrate from localStorage once, after first mount, on the client only.
   useEffect(() => {
     const p = loadPersisted();
     setBaseSecs(p.baseSecs);
@@ -100,46 +122,56 @@ export function StopwatchProvider({ children }: { children: React.ReactNode }) {
     hydratedRef.current = true;
   }, []);
 
-  // Persist on every change (after hydration).
+  // Persist on every change (but not before hydration — otherwise we'd
+  // overwrite saved state with the initial defaults).
   useEffect(() => {
     if (!hydratedRef.current) return;
     savePersisted({ baseSecs, runSinceMs, label, splits });
   }, [baseSecs, runSinceMs, label, splits]);
 
-  // Tick interval — only runs while running.
+  // Tick interval — only while running.
   useEffect(() => {
     if (runSinceMs === null) return;
-    const id = setInterval(() => setTick(t => t + 1), 250);
+    const id = setInterval(() => {
+      setTick(t => (t + 1) % 1_000_000);
+    }, 250);
     return () => clearInterval(id);
   }, [runSinceMs]);
 
-  // Derived elapsed seconds.
+  // Derived values.
   const running = runSinceMs !== null;
-  const elapsed = running
-    ? baseSecs + Math.floor((Date.now() - runSinceMs) / 1000)
-    : baseSecs;
+  const elapsed = (() => {
+    if (runSinceMs === null) return baseSecs;
+    const delta = Math.floor((Date.now() - runSinceMs) / 1000);
+    return baseSecs + (delta > 0 ? delta : 0);
+  })();
 
   const start = useCallback(() => {
     setRunSinceMs(prev => (prev === null ? Date.now() : prev));
   }, []);
 
   const stop = useCallback(() => {
+    // Read current runSinceMs & baseSecs off refs so we don't need
+    // nested setState updaters (which was crashing in some cases).
     setRunSinceMs(prevRunSince => {
       if (prevRunSince === null) return null;
-      const finalSecs = Math.floor((Date.now() - prevRunSince) / 1000);
+      const addedSecs = Math.max(0, Math.floor((Date.now() - prevRunSince) / 1000));
       setBaseSecs(prevBase => {
-        const total = prevBase + finalSecs;
+        const total = prevBase + addedSecs;
         if (total > 0) {
-          setSplits(prevSplits => {
-            const lbl = label.trim() || 'Activity';
-            return [{ label: lbl, dur: total }, ...prevSplits.slice(0, 4)];
+          const lbl = (labelRef.current || '').trim() || 'Activity';
+          // Queue the split push in a microtask so we're not calling a
+          // setter-inside-a-setter (which React tolerates but makes the
+          // execution order surprising).
+          queueMicrotask(() => {
+            setSplits(prev => [{ label: lbl, dur: total }, ...prev].slice(0, 5));
           });
         }
         return total;
       });
       return null;
     });
-  }, [label]);
+  }, []);
 
   const reset = useCallback(() => {
     setRunSinceMs(null);
@@ -150,7 +182,7 @@ export function StopwatchProvider({ children }: { children: React.ReactNode }) {
 
   const setLabel = useCallback((next: string) => setLabelState(next), []);
 
-  const value: StopwatchState = {
+  const value = useMemo<StopwatchState>(() => ({
     elapsed,
     running,
     label,
@@ -159,7 +191,7 @@ export function StopwatchProvider({ children }: { children: React.ReactNode }) {
     stop,
     reset,
     setLabel,
-  };
+  }), [elapsed, running, label, splits, start, stop, reset, setLabel]);
 
   return (
     <StopwatchContext.Provider value={value}>

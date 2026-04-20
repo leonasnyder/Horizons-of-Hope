@@ -107,19 +107,36 @@ export default function GoalCard({ goal, date, responses, onResponseAdded }: Goa
     };
   }, [sessionNote, persistNote]);
 
+  // Keep refs in sync with the latest values so the flush handler (below)
+  // always reads the current data without re-registering listeners.
+  const sessionNoteRef = useRef(sessionNote);
+  useEffect(() => { sessionNoteRef.current = sessionNote; }, [sessionNote]);
+  const goalIdRef = useRef(goal.id);
+  useEffect(() => { goalIdRef.current = goal.id; }, [goal.id]);
+  const dateRef = useRef(date);
+  useEffect(() => { dateRef.current = date; }, [date]);
+
   // Best-effort flush on unmount & when the tab is hidden so notes aren't
-  // lost if the user navigates away or closes the tab within the 1s debounce.
+  // lost if the user navigates away / closes the tab within the 1s debounce.
+  // Deps are intentionally empty so the listeners are registered ONCE — if
+  // we included sessionNote, the cleanup (which calls flush) would fire on
+  // every keystroke and spam the API.
   useEffect(() => {
     const flush = () => {
-      if (sessionNote === lastSavedRef.current) return;
-      const body = JSON.stringify({ goal_id: goal.id, date, notes: sessionNote });
+      const text = sessionNoteRef.current;
+      if (text === lastSavedRef.current) return;
+      const body = JSON.stringify({
+        goal_id: goalIdRef.current,
+        date: dateRef.current,
+        notes: text,
+      });
       if (typeof navigator !== 'undefined' && 'sendBeacon' in navigator) {
         try {
           navigator.sendBeacon(
             '/api/goals/session-notes',
             new Blob([body], { type: 'application/json' })
           );
-          lastSavedRef.current = sessionNote;
+          lastSavedRef.current = text;
           return;
         } catch { /* fall through to fetch */ }
       }
@@ -131,7 +148,9 @@ export default function GoalCard({ goal, date, responses, onResponseAdded }: Goa
         keepalive: true,
       }).catch(() => {});
     };
-    const onVisibilityChange = () => { if (document.visibilityState === 'hidden') flush(); };
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') flush();
+    };
     window.addEventListener('pagehide', flush);
     document.addEventListener('visibilitychange', onVisibilityChange);
     return () => {
@@ -140,7 +159,7 @@ export default function GoalCard({ goal, date, responses, onResponseAdded }: Goa
       flush();
       if (savedIndicatorTimerRef.current) clearTimeout(savedIndicatorTimerRef.current);
     };
-  }, [sessionNote, goal.id, date]);
+  }, []);
 
   const correct = responses.filter(r => r.response_type === 'correct').length;
   const incorrect = responses.filter(r => r.response_type === 'incorrect').length;
