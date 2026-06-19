@@ -21,11 +21,27 @@ async function ensureDaysOfWeekColumn() {
   _daysOfWeekEnsured = true;
 }
 
+let _completionOrderEnsured = false;
+async function ensureCompletionOrderColumn() {
+  if (_completionOrderEnsured) return;
+  try {
+    await sql`ALTER TABLE schedule_entry_sub_activities ADD COLUMN IF NOT EXISTS completion_order INTEGER`;
+  } catch {
+    // ignore — column exists or perms missing
+  }
+  _completionOrderEnsured = true;
+}
+
 async function attachSubActivities(entries: Record<string, unknown>[]): Promise<Record<string, unknown>[]> {
   if (entries.length === 0) return entries;
+  await ensureCompletionOrderColumn();
   const ids = entries.map(e => e.id as number);
+  // Incomplete subtasks first (completed=0), then completed ordered by completion_order ASC,
+  // with id as final tiebreaker to preserve insertion order within each group.
   const subs = await sql`
-    SELECT * FROM schedule_entry_sub_activities WHERE entry_id = ANY(${ids}) ORDER BY id
+    SELECT * FROM schedule_entry_sub_activities
+    WHERE entry_id = ANY(${ids})
+    ORDER BY completed ASC, completion_order ASC NULLS LAST, id ASC
   `;
   const byEntry: Record<number, unknown[]> = {};
   for (const s of subs as unknown as Array<{ entry_id: number }>) {

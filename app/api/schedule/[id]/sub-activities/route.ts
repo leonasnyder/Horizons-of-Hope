@@ -44,11 +44,35 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     if (entry_sub_activity_id == null || completed == null) {
       return NextResponse.json({ error: 'entry_sub_activity_id and completed are required' }, { status: 400 });
     }
-    const result = await sql`
-      UPDATE schedule_entry_sub_activities
-      SET completed = ${completed ? 1 : 0}
-      WHERE id = ${Number(entry_sub_activity_id)} AND entry_id = ${entryId}
-    `;
+
+    // Ensure column exists (self-heal for older databases)
+    try {
+      await sql`ALTER TABLE schedule_entry_sub_activities ADD COLUMN IF NOT EXISTS completion_order INTEGER`;
+    } catch { /* ignore */ }
+
+    let result;
+    if (completed) {
+      // Find the highest completion_order already assigned for this entry so we can append after it.
+      const maxRow = await sql`
+        SELECT COALESCE(MAX(completion_order), 0) AS max_order
+        FROM schedule_entry_sub_activities
+        WHERE entry_id = ${entryId} AND completed = 1
+      `;
+      const nextOrder = (maxRow[0] as { max_order: number }).max_order + 1;
+      result = await sql`
+        UPDATE schedule_entry_sub_activities
+        SET completed = 1, completion_order = ${nextOrder}
+        WHERE id = ${Number(entry_sub_activity_id)} AND entry_id = ${entryId}
+      `;
+    } else {
+      // Unchecking: clear completion_order so the subtask returns to the incomplete group.
+      result = await sql`
+        UPDATE schedule_entry_sub_activities
+        SET completed = 0, completion_order = NULL
+        WHERE id = ${Number(entry_sub_activity_id)} AND entry_id = ${entryId}
+      `;
+    }
+
     if (result.count === 0) return NextResponse.json({ error: 'Not found' }, { status: 404 });
     return NextResponse.json({ success: true });
   } catch (e) {
