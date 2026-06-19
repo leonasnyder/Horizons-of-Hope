@@ -299,11 +299,25 @@ export default function DayView({ date, refreshKey, onReset }: DayViewProps) {
   }, [fetchEntries, pushHistory, entries]);
 
   const handleToggleSubActivity = useCallback(async (entryId: number, entrySubActivityId: number, completed: number) => {
-    setEntries(prev => prev.map(e =>
-      e.id === entryId
-        ? { ...e, entry_sub_activities: e.entry_sub_activities.map(s => s.id === entrySubActivityId ? { ...s, completed } : s) }
-        : e
-    ));
+    // Compute completion_order optimistically so the card re-sorts immediately.
+    setEntries(prev => prev.map(e => {
+      if (e.id !== entryId) return e;
+      let nextOrder: number | null = null;
+      if (completed) {
+        const maxOrder = e.entry_sub_activities
+          .filter(s => s.id !== entrySubActivityId && s.completed)
+          .reduce((m, s) => Math.max(m, s.completion_order ?? 0), 0);
+        nextOrder = maxOrder + 1;
+      }
+      return {
+        ...e,
+        entry_sub_activities: e.entry_sub_activities.map(s =>
+          s.id === entrySubActivityId
+            ? { ...s, completed, completion_order: completed ? nextOrder : null }
+            : s
+        ),
+      };
+    }));
     try {
       const res = await fetch(`/api/schedule/${entryId}/sub-activities`, {
         method: 'PATCH',
@@ -312,9 +326,10 @@ export default function DayView({ date, refreshKey, onReset }: DayViewProps) {
       });
       if (!res.ok) throw new Error();
     } catch {
+      // Roll back optimistic update on failure
       setEntries(prev => prev.map(e =>
         e.id === entryId
-          ? { ...e, entry_sub_activities: e.entry_sub_activities.map(s => s.id === entrySubActivityId ? { ...s, completed: completed ? 0 : 1 } : s) }
+          ? { ...e, entry_sub_activities: e.entry_sub_activities.map(s => s.id === entrySubActivityId ? { ...s, completed: completed ? 0 : 1, completion_order: null } : s) }
           : e
       ));
       toast.error('Failed to update sub-activity');
