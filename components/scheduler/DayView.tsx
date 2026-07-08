@@ -90,6 +90,7 @@ export default function DayView({ date, refreshKey, onReset }: DayViewProps) {
   } | null>(null);
   const printRef = useRef<HTMLDivElement>(null);
   const historyRef = useRef<ScheduleEntry[][]>([]);
+  const completionOrderCounterRef = useRef(0);
   const [canUndo, setCanUndo] = useState(false);
   const MAX_HISTORY = 10;
 
@@ -299,11 +300,24 @@ export default function DayView({ date, refreshKey, onReset }: DayViewProps) {
   }, [fetchEntries, pushHistory, entries]);
 
   const handleToggleSubActivity = useCallback(async (entryId: number, entrySubActivityId: number, completed: number) => {
-    setEntries(prev => prev.map(e =>
-      e.id === entryId
-        ? { ...e, entry_sub_activities: e.entry_sub_activities.map(s => s.id === entrySubActivityId ? { ...s, completed } : s) }
-        : e
-    ));
+    let previousOrder: number | null = null;
+    setEntries(prev => prev.map(e => {
+      if (e.id !== entryId) return e;
+      const sub = e.entry_sub_activities.find(s => s.id === entrySubActivityId);
+      previousOrder = sub?.completed_order ?? null;
+      let optimisticOrder: number | null = null;
+      if (completed) {
+        const maxOrder = e.entry_sub_activities.reduce((max, s) => Math.max(max, s.completed_order ?? 0), 0);
+        completionOrderCounterRef.current = Math.max(completionOrderCounterRef.current, maxOrder) + 1;
+        optimisticOrder = completionOrderCounterRef.current;
+      }
+      return {
+        ...e,
+        entry_sub_activities: e.entry_sub_activities.map(s =>
+          s.id === entrySubActivityId ? { ...s, completed, completed_order: optimisticOrder } : s
+        ),
+      };
+    }));
     try {
       const res = await fetch(`/api/schedule/${entryId}/sub-activities`, {
         method: 'PATCH',
@@ -311,10 +325,16 @@ export default function DayView({ date, refreshKey, onReset }: DayViewProps) {
         body: JSON.stringify({ entry_sub_activity_id: entrySubActivityId, completed }),
       });
       if (!res.ok) throw new Error();
+      const updated = await res.json();
+      setEntries(prev => prev.map(e =>
+        e.id === entryId
+          ? { ...e, entry_sub_activities: e.entry_sub_activities.map(s => s.id === entrySubActivityId ? { ...s, completed_order: updated.completed_order ?? null } : s) }
+          : e
+      ));
     } catch {
       setEntries(prev => prev.map(e =>
         e.id === entryId
-          ? { ...e, entry_sub_activities: e.entry_sub_activities.map(s => s.id === entrySubActivityId ? { ...s, completed: completed ? 0 : 1 } : s) }
+          ? { ...e, entry_sub_activities: e.entry_sub_activities.map(s => s.id === entrySubActivityId ? { ...s, completed: completed ? 0 : 1, completed_order: previousOrder } : s) }
           : e
       ));
       toast.error('Failed to update sub-activity');

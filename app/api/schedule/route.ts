@@ -21,11 +21,27 @@ async function ensureDaysOfWeekColumn() {
   _daysOfWeekEnsured = true;
 }
 
+// Self-heal the schedule_entry_sub_activities.completed_order column and its
+// backing sequence, for installs that predate completion-order sorting.
+let _completedOrderEnsured = false;
+async function ensureCompletedOrderColumn() {
+  if (_completedOrderEnsured) return;
+  try {
+    await sql`ALTER TABLE schedule_entry_sub_activities ADD COLUMN IF NOT EXISTS completed_order INTEGER`;
+    await sql`CREATE SEQUENCE IF NOT EXISTS schedule_entry_sub_activity_completion_seq`;
+  } catch {
+    // ignore — already present or perms missing
+  }
+  _completedOrderEnsured = true;
+}
+
 async function attachSubActivities(entries: Record<string, unknown>[]): Promise<Record<string, unknown>[]> {
   if (entries.length === 0) return entries;
   const ids = entries.map(e => e.id as number);
   const subs = await sql`
-    SELECT * FROM schedule_entry_sub_activities WHERE entry_id = ANY(${ids}) ORDER BY id
+    SELECT * FROM schedule_entry_sub_activities
+    WHERE entry_id = ANY(${ids})
+    ORDER BY completed ASC, completed_order ASC NULLS LAST, id ASC
   `;
   const byEntry: Record<number, unknown[]> = {};
   for (const s of subs as unknown as Array<{ entry_id: number }>) {
@@ -39,6 +55,7 @@ export async function GET(req: NextRequest) {
   if (errorResponse) return errorResponse;
   try {
     await ensureDaysOfWeekColumn();
+    await ensureCompletedOrderColumn();
     const { searchParams } = new URL(req.url);
     const date = searchParams.get('date');
     const startDate = searchParams.get('startDate');

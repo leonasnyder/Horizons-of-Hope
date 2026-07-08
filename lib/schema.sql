@@ -99,8 +99,11 @@ CREATE TABLE IF NOT EXISTS schedule_entry_sub_activities (
   entry_id INTEGER NOT NULL REFERENCES schedule_entries(id),
   sub_activity_id INTEGER REFERENCES activity_sub_activities(id) ON DELETE SET NULL,
   label TEXT NOT NULL,
-  completed INTEGER DEFAULT 0
+  completed INTEGER DEFAULT 0,
+  completed_order INTEGER
 );
+
+CREATE SEQUENCE IF NOT EXISTS schedule_entry_sub_activity_completion_seq;
 
 CREATE TABLE IF NOT EXISTS task_library_categories (
   id SERIAL PRIMARY KEY,

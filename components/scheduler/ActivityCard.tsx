@@ -29,6 +29,16 @@ export interface EntrySubActivity {
   sub_activity_id: number | null;
   label: string;
   completed: number;
+  completed_order: number | null;
+}
+
+function sortSubActivities(subs: EntrySubActivity[]): EntrySubActivity[] {
+  return [...subs].sort((a, b) => {
+    if (a.completed !== b.completed) return a.completed - b.completed;
+    return a.completed
+      ? (a.completed_order ?? 0) - (b.completed_order ?? 0)
+      : a.id - b.id;
+  });
 }
 
 interface ScheduleEntryForCard {
@@ -230,7 +240,7 @@ export default function ActivityCard({
       {/* Sub-activities as checklist */}
       {entry.entry_sub_activities.length > 0 && (
         <div id={`entry-subactivities-${entry.id}`} className="flex flex-col gap-0.5 pl-[76px] pt-1">
-          {entry.entry_sub_activities.map(s => (
+          {sortSubActivities(entry.entry_sub_activities).map(s => (
             <button
               key={s.id}
               id={`entry-subactivity-${s.id}`}

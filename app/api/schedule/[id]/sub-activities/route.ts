@@ -3,6 +3,20 @@ import sql from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
 
+// Self-heal the schedule_entry_sub_activities.completed_order column and its
+// backing sequence, for installs that predate completion-order sorting.
+let _completedOrderEnsured = false;
+async function ensureCompletedOrderColumn() {
+  if (_completedOrderEnsured) return;
+  try {
+    await sql`ALTER TABLE schedule_entry_sub_activities ADD COLUMN IF NOT EXISTS completed_order INTEGER`;
+    await sql`CREATE SEQUENCE IF NOT EXISTS schedule_entry_sub_activity_completion_seq`;
+  } catch {
+    // ignore — already present or perms missing
+  }
+  _completedOrderEnsured = true;
+}
+
 // Replace all sub-activities for an entry with the given sub_activity_ids and custom_labels
 export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
   try {
@@ -39,18 +53,27 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
 
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
   try {
+    await ensureCompletedOrderColumn();
     const entryId = Number(params.id);
     const { entry_sub_activity_id, completed } = await req.json();
     if (entry_sub_activity_id == null || completed == null) {
       return NextResponse.json({ error: 'entry_sub_activity_id and completed are required' }, { status: 400 });
     }
-    const result = await sql`
-      UPDATE schedule_entry_sub_activities
-      SET completed = ${completed ? 1 : 0}
-      WHERE id = ${Number(entry_sub_activity_id)} AND entry_id = ${entryId}
-    `;
+    const result = completed
+      ? await sql`
+          UPDATE schedule_entry_sub_activities
+          SET completed = 1, completed_order = nextval('schedule_entry_sub_activity_completion_seq')
+          WHERE id = ${Number(entry_sub_activity_id)} AND entry_id = ${entryId}
+          RETURNING *
+        `
+      : await sql`
+          UPDATE schedule_entry_sub_activities
+          SET completed = 0, completed_order = NULL
+          WHERE id = ${Number(entry_sub_activity_id)} AND entry_id = ${entryId}
+          RETURNING *
+        `;
     if (result.count === 0) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-    return NextResponse.json({ success: true });
+    return NextResponse.json(result[0]);
   } catch (e) {
     return NextResponse.json({ error: String(e) }, { status: 500 });
   }
