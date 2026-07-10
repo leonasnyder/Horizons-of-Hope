@@ -1,5 +1,5 @@
 'use client';
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { format } from 'date-fns';
 import DatePicker from '@/components/shared/DatePicker';
 import CalendarWidget from '@/components/shared/CalendarWidget';
@@ -33,7 +33,14 @@ function fmtDur(secs: number) {
 }
 
 export default function SchedulerPage() {
-  const [selectedDate, setSelectedDate] = useState(() => format(new Date(), 'yyyy-MM-dd'));
+  // Start empty so server-render and first client-render match; set real "today"
+  // on the client after mount to avoid timezone-driven hydration mismatches.
+  const [selectedDate, setSelectedDate] = useState('');
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setSelectedDate(format(new Date(), 'yyyy-MM-dd'));
+    setMounted(true);
+  }, []);
   const [viewMode, setViewMode] = useState<ViewMode>('day');
   const [activityManagerOpen, setActivityManagerOpen] = useState(false);
   const [weekRefreshKey, setWeekRefreshKey] = useState(0);
@@ -59,6 +66,13 @@ export default function SchedulerPage() {
 
   const { pullDistance } = usePullToRefresh(handlePullRefresh);
   const { reminders, dismiss } = useActivityReminders();
+
+  // Until mounted on the client, render a stable placeholder that matches the
+  // server HTML. Prevents React hydration errors (#418/#423/#425) from the
+  // date being computed differently on the server (UTC) vs the browser.
+  if (!mounted || !selectedDate) {
+    return <div id="scheduler-page" className="max-w-7xl mx-auto p-4" style={{ minHeight: '60vh' }} />;
+  }
 
   return (
     <div id="scheduler-page" className="max-w-7xl mx-auto p-4">

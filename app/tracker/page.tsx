@@ -37,7 +37,14 @@ interface Response {
 type TabMode = 'entry' | 'analytics';
 
 export default function TrackerPage() {
-  const [date, setDate] = useState(() => format(new Date(), 'yyyy-MM-dd'));
+  // Start empty so server-render and first client-render match; set real "today"
+  // on the client after mount to avoid timezone-driven hydration mismatches.
+  const [date, setDate] = useState('');
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setDate(format(new Date(), 'yyyy-MM-dd'));
+    setMounted(true);
+  }, []);
   const [goals, setGoals] = useState<Goal[]>([]);
   const [responses, setResponses] = useState<Response[]>([]);
   const [loadingGoals, setLoadingGoals] = useState(true);
@@ -57,6 +64,7 @@ export default function TrackerPage() {
   }, []);
 
   const fetchResponses = useCallback(() => {
+    if (!date) return;
     fetch(`/api/responses?date=${date}`)
       .then(r => r.json())
       .then(data => { if (Array.isArray(data)) setResponses(data); })
@@ -68,6 +76,12 @@ export default function TrackerPage() {
 
   const responsesForGoal = (goalId: number) =>
     responses.filter(r => r.goal_id === goalId);
+
+  // Until mounted on the client, render a stable placeholder matching the server
+  // HTML — prevents date-driven React hydration errors (#418/#423/#425).
+  if (!mounted || !date) {
+    return <div id="tracker-page" className="max-w-4xl mx-auto p-4" style={{ minHeight: '60vh' }} />;
+  }
 
   return (
     <div id="tracker-page" className="max-w-4xl mx-auto p-4">
