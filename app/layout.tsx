@@ -5,6 +5,7 @@ import { ThemeProvider } from 'next-themes';
 import TopNav from '@/components/layout/TopNav';
 import { Toaster } from 'sonner';
 import { StopwatchProvider } from '@/lib/stopwatch-context';
+import PWAUpdater from '@/components/PWAUpdater';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 
@@ -31,6 +32,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body className="min-h-screen bg-background font-sans antialiased">
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+          <PWAUpdater />
           <StopwatchProvider>
             <div id="app-root" className="flex flex-col min-h-screen">
               <TopNav />
