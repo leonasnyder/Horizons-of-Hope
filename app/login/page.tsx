@@ -63,7 +63,7 @@ export default function LoginPage() {
                 required
                 autoComplete="email"
                 placeholder="you@example.com"
-                className="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition-shadow placeholder-gray-400"
+                className="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition-shadow placeholder-gray-400"
               />
             </div>
             <div>
@@ -80,7 +80,7 @@ export default function LoginPage() {
                 required
                 autoComplete="current-password"
                 placeholder="••••••••"
-                className="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition-shadow placeholder-gray-400"
+                className="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition-shadow placeholder-gray-400"
               />
             </div>
 

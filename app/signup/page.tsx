@@ -96,7 +96,7 @@ export default function SignupPage() {
                 required
                 autoComplete="email"
                 placeholder="you@example.com"
-                className="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition-shadow placeholder-gray-400"
+                className="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition-shadow placeholder-gray-400"
               />
             </div>
             <div>
@@ -111,7 +111,7 @@ export default function SignupPage() {
                 minLength={6}
                 autoComplete="new-password"
                 placeholder="••••••••"
-                className="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition-shadow placeholder-gray-400"
+                className="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition-shadow placeholder-gray-400"
               />
               <p className="text-xs text-gray-400 mt-1.5">Minimum 6 characters</p>
             </div>

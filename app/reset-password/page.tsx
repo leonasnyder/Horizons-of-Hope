@@ -52,7 +52,7 @@ export default function ResetPasswordPage() {
               required
               minLength={6}
               autoComplete="new-password"
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-700"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-700"
             />
             <p className="text-xs text-gray-400 mt-1">Minimum 6 characters</p>
           </div>
@@ -65,7 +65,7 @@ export default function ResetPasswordPage() {
               required
               minLength={6}
               autoComplete="new-password"
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-700"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-700"
             />
           </div>
           {error && <p className="text-sm text-red-600">{error}</p>}
